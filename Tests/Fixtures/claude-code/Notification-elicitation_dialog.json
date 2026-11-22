@@ -1,0 +1,10 @@
+{
+  "session_id": "8f2b6c1e-1111-4a5b-9c3d-000000000001",
+  "transcript_path": "/Users/me/.claude/projects/-Users-me-api-server/8f2b6c1e-1111-4a5b-9c3d-000000000001.jsonl",
+  "cwd": "/Users/me/api-server",
+  "permission_mode": "default",
+  "hook_event_name": "Notification",
+  "message": "Claude has a question for you",
+  "title": "Question",
+  "notification_type": "elicitation_dialog"
+}

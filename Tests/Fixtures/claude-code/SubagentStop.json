@@ -1,0 +1,12 @@
+{
+  "session_id": "8f2b6c1e-1111-4a5b-9c3d-000000000001",
+  "transcript_path": "/Users/me/.claude/projects/-Users-me-api-server/8f2b6c1e-1111-4a5b-9c3d-000000000001.jsonl",
+  "cwd": "/Users/me/api-server",
+  "permission_mode": "default",
+  "hook_event_name": "SubagentStop",
+  "stop_hook_active": false,
+  "agent_id": "agent-abc123",
+  "agent_type": "Explore",
+  "agent_transcript_path": "/Users/me/.claude/projects/x/subagents/agent-abc123.jsonl",
+  "last_assistant_message": "Found 3 issues."
+}

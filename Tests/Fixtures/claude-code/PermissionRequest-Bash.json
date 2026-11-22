@@ -1,0 +1,25 @@
+{
+  "session_id": "8f2b6c1e-1111-4a5b-9c3d-000000000001",
+  "transcript_path": "/Users/me/.claude/projects/-Users-me-api-server/8f2b6c1e-1111-4a5b-9c3d-000000000001.jsonl",
+  "cwd": "/Users/me/api-server",
+  "permission_mode": "default",
+  "hook_event_name": "PermissionRequest",
+  "tool_name": "Bash",
+  "tool_input": {
+    "command": "npm test -- --coverage",
+    "description": "Run test suite with coverage"
+  },
+  "permission_suggestions": [
+    {
+      "type": "addRules",
+      "rules": [
+        {
+          "toolName": "Bash",
+          "ruleContent": "npm test:*"
+        }
+      ],
+      "behavior": "allow",
+      "destination": "localSettings"
+    }
+  ]
+}
