@@ -1,5 +1,10 @@
 import Foundation
 
+public enum Reducer {
+    /// A session with no pid and no events for this long is assumed gone (its SessionEnd was missed).
+    public static let orphanTimeout: TimeInterval = 15 * 60
+}
+
 /// Pure state transition: (sessions, event) -> sessions.
 ///
 /// Rules that keep it safe against real-world event streams:
@@ -18,6 +23,11 @@ public func reduce(_ state: SessionsState, _ event: StoreEvent) -> SessionsState
         for (id, session) in next.sessions where session.pid == pid {
             next.sessions[id] = nil
             next.ended.insert(id)
+        }
+    case .pruneOrphans(let now):
+        for (id, session) in next.sessions
+        where session.pid == nil && now.timeIntervalSince(session.lastEventAt) > Reducer.orphanTimeout {
+            next.sessions[id] = nil
         }
     case .viewed(let ids, _):
         for id in ids {

@@ -203,4 +203,6 @@ public enum StoreEvent: Equatable, Sendable {
     case processExited(pid: Int32)
     /// The user saw these sessions in the expanded panel.
     case viewed(ids: [String], at: Date)
+    /// Drops sessions with no known process that have been silent for `Reducer.orphanTimeout`.
+    case pruneOrphans(now: Date)
 }

@@ -246,6 +246,22 @@ struct ReducerTests {
         #expect(s.sessions.isEmpty)
     }
 
+    // MARK: Orphans
+
+    @Test func sessionsWithoutAProcessAreDroppedAfterLongSilence() {
+        let withPid = DiscoveredSession(sessionId: "has-pid", pid: 7, status: "busy")
+        let s = run([
+            ev(.permissionRequested(bash), 0, id: "ghost"),
+            ev(.promptSubmitted, 0, id: "recent"),
+            .discovered(withPid, at: at(0)),
+            ev(.promptSubmitted, 1000, id: "recent"),
+            .pruneOrphans(now: at(Reducer.orphanTimeout + 1)),
+        ])
+        #expect(s.sessions["ghost"] == nil)
+        #expect(s.sessions["recent"] != nil)
+        #expect(s.sessions["has-pid"] != nil)
+    }
+
     // MARK: Discovery
 
     @Test func discoveredSessionAppearsWithItsFileStatus() {
