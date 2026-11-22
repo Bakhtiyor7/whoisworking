@@ -24,3 +24,10 @@ carry the same fields plus `effort`, `prompt_id` and `scratchpad_dir`, which Per
 
 Codex hook payloads built by hand on 2026-11-22 from https://learn.chatgpt.com/docs/hooks
 (redirected from developers.openai.com/codex/hooks), for Codex CLI 0.163. Not captured.
+
+## `codex-rollout/*.jsonl`
+
+`failed-turn.jsonl`: the `task_started` / `task_complete` lines are CAPTURED from a real
+Codex CLI 0.163 rollout (a turn that failed with a 400 model error); the `response_item`
+line between them is constructed. `completed-turn.jsonl` and `running-turn.jsonl` are
+CONSTRUCTED in the same shape. Codex documents the rollout format as unstable.

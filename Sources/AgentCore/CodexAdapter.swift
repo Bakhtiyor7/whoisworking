@@ -13,7 +13,10 @@ public enum CodexAdapter {
             let name = json["hook_event_name"] as? String,
             let kind = kind(for: name, json)
         else { return nil }
-        return AgentEvent(sessionId: sessionId, date: date, agent: .codex, cwd: json["cwd"] as? String, kind: kind)
+        var event = AgentEvent(sessionId: sessionId, date: date, agent: .codex, cwd: json["cwd"] as? String, kind: kind)
+        event.turnId = json["turn_id"] as? String
+        event.transcriptPath = json["transcript_path"] as? String
+        return event
     }
 
     private static func kind(for name: String, _ json: [String: Any]) -> AgentEvent.Kind? {

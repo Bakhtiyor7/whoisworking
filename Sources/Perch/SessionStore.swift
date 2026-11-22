@@ -125,8 +125,12 @@ final class SessionStore: ObservableObject {
         }
         // Codex has no session files: running interactive CLIs show as placeholders until their first hook.
         let codexProcesses = CodexProcesses.discoveryEvents(probe: probe, now: Date())
+        // Codex fires no hook when a turn fails: a quiet "working" Codex session gets its rollout read.
+        let endedTurns = state.sessions.values.compactMap {
+            CodexRollout.endOfQuietTurn($0, now: Date()) { CodexRollout.readTail(of: $0) }
+        }
         var next = state
-        for event in events + codexProcesses + [.pruneOrphans(now: Date())] { next = reduce(next, event) }
+        for event in events + codexProcesses + endedTurns + [.pruneOrphans(now: Date())] { next = reduce(next, event) }
         if next != state { state = next }
     }
 

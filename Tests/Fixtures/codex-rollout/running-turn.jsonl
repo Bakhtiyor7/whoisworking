@@ -1,0 +1,3 @@
+{"timestamp":"2026-11-22T12:00:00Z","type":"event_msg","payload":{"type":"task_started","turn_id":"turn_a"}}
+{"timestamp":"2026-11-22T12:00:09Z","type":"event_msg","payload":{"type":"task_complete","turn_id":"turn_a","last_agent_message":"Done.","error":null}}
+{"timestamp":"2026-11-22T12:01:00Z","type":"event_msg","payload":{"type":"task_started","turn_id":"turn_b"}}

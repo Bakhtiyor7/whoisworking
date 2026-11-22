@@ -76,6 +76,10 @@ public struct Session: Equatable, Sendable, Identifiable {
     public var message: String?
     /// False until a hook event arrives; until then the session file's status drives the state.
     public var hasHookEvents: Bool
+    /// The agent's current turn id, when its hooks report one (Codex).
+    public var turnId: String? = nil
+    /// The agent's transcript file, when its hooks report one.
+    public var transcriptPath: String? = nil
 
     public init(
         id: String,
@@ -165,6 +169,9 @@ public struct AgentEvent: Equatable, Sendable {
     public var cwd: String?
     /// The agent process that ran the hook, when known (resolved from the hook's parent chain).
     public var pid: Int32?
+    /// Turn id and transcript path, when the agent's hook payload has them.
+    public var turnId: String? = nil
+    public var transcriptPath: String? = nil
     public var kind: Kind
 
     public init(

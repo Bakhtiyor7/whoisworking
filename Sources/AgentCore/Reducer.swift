@@ -76,6 +76,8 @@ private func applyAgent(_ e: AgentEvent, to state: inout SessionsState) {
     session.hasHookEvents = true
     session.lastEventAt = e.date
     if let cwd = e.cwd, !cwd.isEmpty { session.cwd = cwd }
+    if let turnId = e.turnId { session.turnId = turnId }
+    if let path = e.transcriptPath, !path.isEmpty { session.transcriptPath = path }
     if let pid = e.pid {
         session.pid = pid
         // The process now has a real session: drop its placeholder.
