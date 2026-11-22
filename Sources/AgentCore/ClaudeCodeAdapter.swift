@@ -15,6 +15,14 @@ public enum ClaudeCodeAdapter {
 
     private static func kind(for name: String, _ json: [String: Any]) -> AgentEvent.Kind? {
         let inSubagent = json["agent_id"] != nil
+        // AskUserQuestion is routed through the permission flow but is a question to the user.
+        if json["tool_name"] as? String == "AskUserQuestion" {
+            switch name {
+            case "PermissionRequest": return .waitingForReply(message: firstQuestion(json))
+            case "PostToolUse", "PostToolUseFailure": return .resumed
+            default: break
+            }
+        }
         switch name {
         case "SessionStart": return .sessionStarted
         case "SessionEnd": return .sessionEnded
@@ -42,6 +50,12 @@ public enum ClaudeCodeAdapter {
         case "elicitation_complete", "elicitation_response": return .resumed
         default: return nil
         }
+    }
+
+    private static func firstQuestion(_ json: [String: Any]) -> String? {
+        let input = json["tool_input"] as? [String: Any]
+        let questions = input?["questions"] as? [[String: Any]]
+        return questions?.first?["question"] as? String
     }
 
     private static func failure(_ json: [String: Any]) -> String {

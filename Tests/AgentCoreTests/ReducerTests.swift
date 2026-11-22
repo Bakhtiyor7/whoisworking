@@ -339,6 +339,24 @@ struct ReducerTests {
         #expect(s.sessions["s1"]?.state == .idle)
     }
 
+    /// Safety net for approvals whose resolving hook does not match: the file says busy again afterwards.
+    @Test func fileGoingBusyAfterAnApprovalMeansWorkingAgain() {
+        var found = DiscoveredSession(sessionId: "s1", pid: 99, status: "waiting", statusUpdatedAt: at(2.1))
+        var s = run([ev(.promptSubmitted, 0), ev(.permissionRequested(bash), 2), .discovered(found, at: at(3))])
+        #expect(s.sessions["s1"]?.state == .needsApproval)
+        found.status = "busy"
+        found.statusUpdatedAt = at(20)
+        s = run([.discovered(found, at: at(21))], from: s)
+        #expect(s.sessions["s1"]?.state == .working)
+        #expect(s.sessions["s1"]?.pendingTool == nil)
+    }
+
+    @Test func busyFileStatusFromBeforeTheRequestKeepsNeedsApproval() {
+        let found = DiscoveredSession(sessionId: "s1", pid: 99, status: "busy", statusUpdatedAt: at(0.5))
+        let s = run([ev(.promptSubmitted, 0), ev(.permissionRequested(bash), 2), .discovered(found, at: at(3))])
+        #expect(s.sessions["s1"]?.state == .needsApproval)
+    }
+
     @Test func staleIdleFileStatusDoesNotOverrideNewerHookState() {
         let found = DiscoveredSession(sessionId: "s1", pid: 99, status: "idle", statusUpdatedAt: at(1.8))
         let s = run([ev(.permissionRequested(bash), 2), .discovered(found, at: at(3))])

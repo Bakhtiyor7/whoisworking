@@ -68,6 +68,15 @@ struct ClaudeCodeAdapterTests {
         #expect(try kind("SubagentStop") == .subagent(started: false, type: "Explore"))
     }
 
+    /// Seen live: Claude Code routes AskUserQuestion through PermissionRequest, and the PostToolUse
+    /// input then also carries the answers, so it never matched the pending request.
+    @Test func askUserQuestionIsAQuestionNotAnApproval() {
+        let ask = #"{"session_id":"x","hook_event_name":"PermissionRequest","tool_name":"AskUserQuestion","tool_input":{"questions":[{"question":"Install the hooks?","header":"Hooks","options":[]}]}}"#
+        #expect(ClaudeCodeAdapter.event(from: Data(ask.utf8), receivedAt: now)?.kind == .waitingForReply(message: "Install the hooks?"))
+        let done = #"{"session_id":"x","hook_event_name":"PostToolUse","tool_name":"AskUserQuestion","tool_input":{"questions":[],"answers":{"q":"a"}}}"#
+        #expect(ClaudeCodeAdapter.event(from: Data(done.utf8), receivedAt: now)?.kind == .resumed)
+    }
+
     @Test func autoModeDenial() throws {
         #expect(try kind("PermissionDenied") == .permissionDenied)
     }

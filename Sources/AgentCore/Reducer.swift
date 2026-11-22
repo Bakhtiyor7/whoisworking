@@ -194,16 +194,21 @@ private func applyDiscovered(_ found: DiscoveredSession, at date: Date, to state
                 session.stateSince = found.statusUpdatedAt ?? date
             }
             session.lastEventAt = date
-        } else if session.hasHookEvents, fileState == .idle,
-                  session.state == .needsApproval || session.state == .working,
-                  let changed = found.statusUpdatedAt,
+        } else if session.hasHookEvents, let fileState, let changed = found.statusUpdatedAt,
                   changed > session.stateSince.addingTimeInterval(Reducer.fileStatusMargin)
         {
-            // The turn ended without a hook: a declined permission prompt or an Esc interrupt.
-            session.state = .idle
-            session.stateSince = changed
-            session.pendingTool = nil
-            session.activity = nil
+            if fileState == .idle, session.state == .needsApproval || session.state == .working {
+                // The turn ended without a hook: a declined permission prompt or an Esc interrupt.
+                session.state = .idle
+                session.stateSince = changed
+                session.pendingTool = nil
+                session.activity = nil
+            } else if fileState == .working, session.state == .needsApproval {
+                // Answered, but the resolving hook did not match the request (e.g. its input changed).
+                session.state = .working
+                session.stateSince = changed
+                session.pendingTool = nil
+            }
         }
         state.sessions[id] = session
     } else {
