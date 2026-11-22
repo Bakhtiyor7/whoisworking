@@ -43,7 +43,11 @@ Hover the notch to open the panel. With no notch (external display), WhoIsWorkin
 scripts/update.sh
 ```
 
-This runs the tests and the spec check, builds the release binary, stops the running WhoIsWorking, rebuilds `build/WhoIsWorking.app` and opens it. Tests and the build run before anything is stopped, so a failure leaves the running copy alone. `--skip-tests` skips the first step. Installed hooks keep working across updates: the hook script path stays the same and WhoIsWorking rewrites the script at launch when it changed.
+This runs the tests and the spec check, builds the release binary, stops the running WhoIsWorking, rebuilds `build/WhoIsWorking.app` and opens it. Tests and the build run before anything is stopped, so a failure leaves the running copy alone. `--skip-tests` skips the first step.
+
+To have WhoIsWorking in Applications (and Launchpad), run `scripts/update.sh --install`: it copies the new build to `/Applications/WhoIsWorking.app` and opens that copy. Once it is there, every later `scripts/update.sh` updates it too. "Open at login" needs the copy in Applications.
+
+Installed hooks keep working across updates: the hook script path stays the same and WhoIsWorking rewrites the script at launch when it changed.
 
 Claude Code sessions that were already running appear within a few seconds (WhoIsWorking reads `~/.claude/sessions/*.json`). Codex has no session files: running Codex CLIs show as "Running · no live status yet" until their first hook event. Live states (needs approval, waiting for reply, done) need the hooks below. Cursor, OpenCode and Antigravity sessions appear after their first event once their hooks or plugin are installed. Session rows and Needs you cards show each agent's icon.
 

@@ -18,7 +18,7 @@ swift build                                                        # debug build
 scripts/check-specs.sh                                             # specs and tests name each other
 scripts/bundle.sh                                                  # release build -> build/WhoIsWorking.app (ad-hoc signed)
 scripts/bundle.sh debug                                            # same, debug configuration
-scripts/update.sh [--skip-tests]                                   # test, build, stop the running WhoIsWorking, rebundle, reopen
+scripts/update.sh [--skip-tests] [--install]                       # test, build, stop the running WhoIsWorking, rebundle, reopen (--install: into /Applications)
 scripts/release.sh X.Y.Z --dry-run                                 # release build + DMG + checks in build/release/X.Y.Z, publishes nothing
 open build/WhoIsWorking.app
 ```
@@ -124,14 +124,14 @@ Visual and interaction work follows the `whoisworking-design` skill: Mobbin for 
 
 Mobbin, Liquid Glass (`liquid-glass`) and Apple HIG (`apple-hig-designer`) come from the user's plugins and personal skills, not from this repo. If one is missing in a session, say so and carry on; never invent a reference or a link.
 
-To check the UI, run the debug binary directly (`.build/debug/WhoIsWorking` with the `WHOISWORKING_*` variables); the `whoisworking-verify-ui` skill has the steps. Do not run `scripts/bundle.sh` just to check something: it replaces `build/WhoIsWorking.app`, which may be the copy that is running. `scripts/update.sh` also stops the running WhoIsWorking, so run it only when the user asks.
+To check the UI, run the debug binary directly (`.build/debug/WhoIsWorking` with the `WHOISWORKING_*` variables); the `whoisworking-verify-ui` skill has the steps. Do not run `scripts/bundle.sh` just to check something: it replaces `build/WhoIsWorking.app`, which may be the copy that is running. `scripts/update.sh` also stops the running WhoIsWorking, so run it only when the user asks; to install the new build in `/Applications`, use the `whoisworking-install` skill.
 
 ## Agent setup
 
 | What | Where | Read by |
 |---|---|---|
 | Instructions | `AGENTS.md` (`CLAUDE.md` imports it) | Claude Code, Codex, Cursor, OpenCode |
-| Skills: `whoisworking-spec`, `whoisworking-verify-ui`, `whoisworking-design`, `whoisworking-fixtures` | `.agents/skills/` (`.claude/skills` is a symlink to it) | all four |
+| Skills: `whoisworking-spec`, `whoisworking-verify-ui`, `whoisworking-design`, `whoisworking-fixtures`, `whoisworking-install` | `.agents/skills/` (`.claude/skills` is a symlink to it) | all four |
 | Subagents: `spec-reviewer`, `design-reviewer` | `.claude/agents/` | Claude Code |
 | Allowed commands, plugins, hooks | `.claude/settings.json` | Claude Code |
 | Allowed commands | `.codex/rules/whoisworking.rules` (trusted projects only), `.cursor/cli.json`, `opencode.json` | Codex, cursor-agent, OpenCode |
