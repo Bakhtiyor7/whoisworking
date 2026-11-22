@@ -175,6 +175,8 @@ struct CodexProcessTests {
         #expect(!CodexProcesses.isInteractive(arguments: ["codex", "exec", "do it"]))
         #expect(!CodexProcesses.isInteractive(arguments: ["codex", "mcp-server"]))
         #expect(!CodexProcesses.isInteractive(arguments: ["codex", "-c", "a=b", "app-server"]))
+        // Seen on this machine: a ChatGPT.app helper.
+        #expect(!CodexProcesses.isInteractive(arguments: ["codex", "-c", "forced_login_method=chatgpt", "exec-server", "--concurrent-requests", "32"]))
     }
 
     @Test func theHookParentChainLeadsToTheCodexProcess() {
@@ -194,14 +196,23 @@ struct CodexProcessTests {
             10: ["codex", "-a", "untrusted"], 11: ["codex", "app-server", "--listen", "stdio://"], 13: ["codex", "resume"],
         ]
         let cwds: [Int32: String] = [10: "/Users/me/web", 13: "/Users/me/api"]
+        // 14 looks interactive but has no terminal (started by an app), so it is not a CLI session.
+        let names2 = names.merging([14: "codex"]) { a, _ in a }
+        let args2 = args.merging([14: ["codex"]]) { a, _ in a }
+        let terminals: Set<Int32> = [10, 11, 13]
         let probe = ProcessProbe(
-            startTime: { _ in now }, name: { names[$0] }, arguments: { args[$0] },
-            allPids: { [10, 11, 12, 13] }, cwd: { cwds[$0] })
+            startTime: { _ in now }, name: { names2[$0] }, arguments: { args2[$0] },
+            allPids: { [10, 11, 12, 13, 14] }, cwd: { cwds[$0] }, hasTerminal: { terminals.contains($0) })
         let events = CodexProcesses.discoveryEvents(probe: probe, now: now)
         #expect(events == [
             .discoveredProcess(DiscoveredProcess(agent: .codex, pid: 10, cwd: "/Users/me/web", startedAt: now), at: now),
             .discoveredProcess(DiscoveredProcess(agent: .codex, pid: 13, cwd: "/Users/me/api", startedAt: now), at: now),
         ])
+    }
+
+    @Test func theRealProbeKnowsWhetherAProcessHasATerminal() {
+        // launchd never has a controlling terminal.
+        #expect(!ProcessProbe.system.hasTerminal(1))
     }
 
     @Test func theRealProbeListsProcessesAndFindsThisOnesFolder() {

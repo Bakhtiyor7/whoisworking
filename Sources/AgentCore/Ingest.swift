@@ -232,6 +232,7 @@ public struct ProcessProbe: Sendable {
     private let argumentsLookup: @Sendable (Int32) -> [String]?
     private let allPidsLookup: @Sendable () -> [Int32]
     private let cwdLookup: @Sendable (Int32) -> String?
+    private let terminalLookup: @Sendable (Int32) -> Bool
 
     public init(
         startTime: @escaping @Sendable (Int32) -> Date?,
@@ -239,7 +240,8 @@ public struct ProcessProbe: Sendable {
         name: @escaping @Sendable (Int32) -> String? = { _ in nil },
         arguments: @escaping @Sendable (Int32) -> [String]? = { _ in nil },
         allPids: @escaping @Sendable () -> [Int32] = { [] },
-        cwd: @escaping @Sendable (Int32) -> String? = { _ in nil }
+        cwd: @escaping @Sendable (Int32) -> String? = { _ in nil },
+        hasTerminal: @escaping @Sendable (Int32) -> Bool = { _ in false }
     ) {
         self.startTime = startTime
         self.parentLookup = parent
@@ -247,7 +249,11 @@ public struct ProcessProbe: Sendable {
         self.argumentsLookup = arguments
         self.allPidsLookup = allPids
         self.cwdLookup = cwd
+        self.terminalLookup = hasTerminal
     }
+
+    /// The process has a controlling terminal (interactive CLIs do; helpers started by apps do not).
+    public func hasTerminal(_ pid: Int32) -> Bool { terminalLookup(pid) }
 
     public func allPids() -> [Int32] { allPidsLookup() }
     public func cwd(of pid: Int32) -> String? { cwdLookup(pid) }
@@ -296,6 +302,10 @@ public struct ProcessProbe: Sendable {
             return withUnsafeBytes(of: info.pvi_cdir.vip_path) { raw in
                 String(decoding: raw.prefix { $0 != 0 }, as: UTF8.self)
             }
+        },
+        hasTerminal: { pid in
+            guard let info = kinfo(pid) else { return false }
+            return info.kp_eproc.e_tdev != -1 && (info.kp_proc.p_flag & P_CONTROLT) != 0
         }
     )
 

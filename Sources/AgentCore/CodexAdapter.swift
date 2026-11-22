@@ -92,6 +92,7 @@ public enum CodexProcesses {
     static let nonInteractive: Set<String> = [
         "exec", "e", "review", "login", "logout", "mcp", "mcp-server", "app-server", "app", "completion",
         "sandbox", "debug", "apply", "a", "cloud", "responses-api-proxy", "stdio-to-uds", "features", "help",
+        "exec-server",
     ]
 
     /// Options that take a separate value.
@@ -104,7 +105,7 @@ public enum CodexProcesses {
     /// their first hook event, so sessions started before Perch are visible (state unknown until then).
     public static func discoveryEvents(probe: ProcessProbe, now: Date) -> [StoreEvent] {
         probe.allPids().sorted().compactMap { pid in
-            guard probe.name(of: pid) == processName,
+            guard probe.name(of: pid) == processName, probe.hasTerminal(pid),
                   let args = probe.arguments(of: pid), isInteractive(arguments: args)
             else { return nil }
             let proc = DiscoveredProcess(agent: .codex, pid: pid, cwd: probe.cwd(of: pid), startedAt: probe.startTime(of: pid))
