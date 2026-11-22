@@ -21,13 +21,55 @@ public enum HookInstallStatus: Equatable, Sendable {
     case installed
 }
 
-/// Adds and removes Perch's hook handlers in a Claude Code `settings.json`.
+/// Which agent's hook file an installer edits. Claude Code and Codex use the same JSON shape:
+/// `{"hooks": {"<Event>": [{"matcher": …, "hooks": [{"type": "command", "command": …}]}]}}`.
+public struct HookTarget: Equatable, Sendable {
+    public var agent: AgentKind
+    /// Name used in the hook command and on the command line (`claude-code`, `codex`).
+    public var id: String
+    public var events: [String]
+    public var timeoutSeconds: Int
+    /// Relative to the home folder.
+    public var defaultSettingsPath: String
+
+    public static let claudeCode = HookTarget(
+        agent: .claudeCode, id: "claude-code",
+        events: [
+            "SessionStart", "SessionEnd", "UserPromptSubmit",
+            "PreToolUse", "PostToolUse", "PostToolUseFailure",
+            "PermissionRequest", "PermissionDenied", "Notification",
+            "Stop", "StopFailure", "SubagentStart", "SubagentStop",
+        ],
+        timeoutSeconds: 5, defaultSettingsPath: ".claude/settings.json")
+
+    /// https://learn.chatgpt.com/docs/hooks. Codex caps SessionEnd and Interrupt hooks at 3 s.
+    public static let codex = HookTarget(
+        agent: .codex, id: "codex",
+        events: [
+            "SessionStart", "SessionEnd", "UserPromptSubmit", "PreToolUse", "PostToolUse",
+            "PermissionRequest", "Stop", "Interrupt", "SubagentStart", "SubagentStop",
+        ],
+        timeoutSeconds: 3, defaultSettingsPath: ".codex/hooks.json")
+
+    public static let all: [HookTarget] = [.claudeCode, .codex]
+
+    public static func named(_ id: String) -> HookTarget? { all.first { $0.id == id } }
+
+    public var defaultSettingsURL: URL {
+        FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(defaultSettingsPath)
+    }
+}
+
+/// Earlier name, kept for the Claude Code call sites.
+public typealias ClaudeHookInstaller = HookInstaller
+
+/// Adds and removes Perch's hook handlers in an agent's hook file.
 ///
 /// - Merges into existing `hooks` without changing or reordering other tools' entries.
 /// - Writes a timestamped backup beside the file before every change.
 /// - Recognises its own handlers by the command (`…/Perch/perch-hook …`), so uninstall removes exactly those.
 /// - Is idempotent, and refuses to write when the file is not valid JSON or has an unexpected shape.
-public struct ClaudeHookInstaller: Sendable {
+public struct HookInstaller: Sendable {
     public enum Action: Sendable { case install, uninstall }
 
     public struct Result: Equatable, Sendable {
@@ -43,26 +85,29 @@ public struct ClaudeHookInstaller: Sendable {
         public var changes: Bool { before != after }
     }
 
-    /// Claude Code hook events Perch listens to.
-    public static let events = [
-        "SessionStart", "SessionEnd", "UserPromptSubmit",
-        "PreToolUse", "PostToolUse", "PostToolUseFailure",
-        "PermissionRequest", "PermissionDenied", "Notification",
-        "Stop", "StopFailure", "SubagentStart", "SubagentStop",
-    ]
+    /// Claude Code events (kept for existing callers).
+    public static var events: [String] { HookTarget.claudeCode.events }
 
     /// Any handler whose command contains this is Perch's.
     public static let marker = "/Perch/perch-hook"
-    public static let timeoutSeconds = 5
 
+    public let target: HookTarget
     public let settingsURL: URL
     public let hookCommand: String
     public let now: @Sendable () -> Date
 
-    public init(settingsURL: URL, hookCommand: String, now: @escaping @Sendable () -> Date = Date.init) {
+    private var events: [String] { target.events }
+
+    public init(target: HookTarget, settingsURL: URL, hookCommand: String, now: @escaping @Sendable () -> Date = Date.init) {
+        self.target = target
         self.settingsURL = settingsURL
         self.hookCommand = hookCommand
         self.now = now
+    }
+
+    /// Claude Code installer.
+    public init(settingsURL: URL, hookCommand: String, now: @escaping @Sendable () -> Date = Date.init) {
+        self.init(target: .claudeCode, settingsURL: settingsURL, hookCommand: hookCommand, now: now)
     }
 
     // MARK: Public API
@@ -72,17 +117,17 @@ public struct ClaudeHookInstaller: Sendable {
         guard let hooks = root["hooks"] else { return .notInstalled }
         var current = 0
         var any = false
-        for event in Self.events {
+        for event in events {
             let handlers = (hooks[event]?.arrayValue ?? []).flatMap { $0["hooks"]?.arrayValue ?? [] }
             let ours = handlers.filter(isOurs)
             if !ours.isEmpty { any = true }
             if ours.count == 1, ours[0]["command"]?.stringValue == hookCommand { current += 1 }
         }
         // Handlers left on events we no longer use also count as "partial".
-        let stray = hooks.objectKeys.filter { !Self.events.contains($0) }.contains { event in
+        let stray = hooks.objectKeys.filter { !events.contains($0) }.contains { event in
             (hooks[event]?.arrayValue ?? []).flatMap { $0["hooks"]?.arrayValue ?? [] }.contains(where: isOurs)
         }
-        if current == Self.events.count, !stray { return .installed }
+        if current == events.count, !stray { return .installed }
         return any || stray ? .partial : .notInstalled
     }
 
@@ -155,13 +200,13 @@ public struct ClaudeHookInstaller: Sendable {
     private func transform(_ root: JSONValue, _ action: Action) throws -> JSONValue {
         guard case .object(var members) = root else { return root }
         let hooksIndex = members.firstIndex { $0.name == "hooks" }
-        var events: [JSONValue.Member] = []
-        if let hooksIndex, case .object(let existing) = members[hooksIndex].value { events = existing }
+        var existingEvents: [JSONValue.Member] = []
+        if let hooksIndex, case .object(let existing) = members[hooksIndex].value { existingEvents = existing }
         let hadHooks = hooksIndex != nil
 
         // 1. Remove every Perch handler, dropping groups and events that only held Perch's.
         var cleaned: [JSONValue.Member] = []
-        for event in events {
+        for event in existingEvents {
             guard case .array(let groups) = event.value else { cleaned.append(event); continue }
             var keptGroups: [JSONValue] = []
             var removedAny = false
@@ -181,9 +226,9 @@ public struct ClaudeHookInstaller: Sendable {
             cleaned.append(JSONValue.Member(event.name, .array(keptGroups)))
         }
 
-        // 2. On install, append one Perch group to each event.
+        // 2. On install, append one Perch group to each of the target's events.
         if action == .install {
-            for event in Self.events {
+            for event in target.events {
                 if let i = cleaned.firstIndex(where: { $0.name == event }), case .array(var groups) = cleaned[i].value {
                     groups.append(ourGroup)
                     cleaned[i].value = .array(groups)
@@ -194,7 +239,7 @@ public struct ClaudeHookInstaller: Sendable {
         }
 
         if let hooksIndex {
-            if cleaned.isEmpty, !events.isEmpty {
+            if cleaned.isEmpty, !existingEvents.isEmpty {
                 members.remove(at: hooksIndex)
             } else {
                 members[hooksIndex].value = .object(cleaned)
@@ -211,7 +256,7 @@ public struct ClaudeHookInstaller: Sendable {
                 .object([
                     JSONValue.Member("type", .string("command")),
                     JSONValue.Member("command", .string(hookCommand)),
-                    JSONValue.Member("timeout", .number(String(Self.timeoutSeconds))),
+                    JSONValue.Member("timeout", .number(String(target.timeoutSeconds))),
                 ]),
             ])),
         ])
