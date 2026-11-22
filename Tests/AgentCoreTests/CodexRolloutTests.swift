@@ -91,4 +91,28 @@ struct CodexRolloutTests {
     @Test func aMissingRolloutChangesNothing() {
         #expect(CodexRollout.endOfQuietTurn(workingCodex(lastEvent: -30), now: now) { _ in nil } == nil)
     }
+
+    @Test func theTailOfARegularFileIsRead() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("whoisworking-rollout-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let file = dir.appendingPathComponent("rollout.jsonl")
+        try Data(("a" + String(repeating: "x", count: 99) + "END").utf8).write(to: file)
+        #expect(CodexRollout.readTail(of: file.path, bytes: 1000) == "a" + String(repeating: "x", count: 99) + "END")
+        #expect(CodexRollout.readTail(of: file.path, bytes: 5) == "xxEND")
+    }
+
+    /// A same-user process can name any path as `transcript_path`; none of these may block or read without end.
+    @Test(.timeLimit(.minutes(1)))
+    func specialFilesAreNotRead() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("whoisworking-rollout-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let fifo = dir.appendingPathComponent("pipe").path
+        #expect(mkfifo(fifo, 0o600) == 0)
+        #expect(CodexRollout.readTail(of: fifo) == nil)        // would block forever in open()
+        #expect(CodexRollout.readTail(of: "/dev/zero") == nil) // would read without end
+        #expect(CodexRollout.readTail(of: dir.path) == nil)
+        #expect(CodexRollout.readTail(of: dir.appendingPathComponent("missing").path) == nil)
+    }
 }

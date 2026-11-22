@@ -49,6 +49,20 @@ Claude Code sessions that were already running appear within a few seconds (WhoI
 
 WhoIsWorking bundles the full-color [Claude Code](https://github.com/lobehub/lobe-icons/blob/7e81f85708ada35e054c96173a14b1bfbe9b74e3/packages/static-png/dark/claudecode-color.png) and [Codex](https://github.com/lobehub/lobe-icons/blob/7e81f85708ada35e054c96173a14b1bfbe9b74e3/packages/static-png/dark/codex-color.png) artwork and the [Cursor, OpenCode and Antigravity marks](Resources/AgentIcons/README.md) from Lobe Icons. The [Lobe Icons MIT license](Sources/WhoIsWorking/AgentIcons/LobeIcons-LICENSE.txt) ships with the app. The marks identify the agents and belong to their respective owners.
 
+## Releases
+
+Builds for other people are published in the public [whoisworking-releases](https://github.com/Bakhtiyor7/whoisworking-releases) repo as a DMG; this repo stays private. Bump the version in `Resources/Info.plist` and write `docs/release-notes/X.Y.Z.md` in a commit, then:
+
+```bash
+scripts/release.sh 0.1.0 --dry-run
+```
+
+```bash
+scripts/release.sh 0.1.0
+```
+
+The dry run tests, builds into `build/release/0.1.0/` and checks the DMG without publishing anything. The real run shows what it will publish and asks for "yes", then creates the release, pushes `master` and the tag to this repo, and checks the public download. The app's Check for Updates button reads the latest release of that repo. Details: [spec 13](docs/specs/13-distribution.md).
+
 ## Switching from Perch
 
 The rename changed the hook path, so WhoIsWorking does not recognise hooks that Perch installed. With the old build still in `build/Perch.app`, remove them first (or use Uninstall hooks in Perch's Settings), then quit Perch:

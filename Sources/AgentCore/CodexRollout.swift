@@ -66,13 +66,25 @@ public enum CodexRollout {
     }
 
     /// The last `bytes` of a file: rollouts grow large, and only the end matters.
+    ///
+    /// The path comes from hook payloads, which any local process can send (CDX-11): only a regular
+    /// file is read, never more than `bytes`. `O_NONBLOCK` keeps `open` from waiting on a FIFO, and
+    /// the type check keeps devices such as `/dev/zero` from being read without end.
     public static func readTail(of path: String, bytes: Int = 256 * 1024) -> String? {
-        guard let handle = FileHandle(forReadingAtPath: path) else { return nil }
-        defer { try? handle.close() }
-        guard let size = try? handle.seekToEnd() else { return nil }
-        let start = size > UInt64(bytes) ? size - UInt64(bytes) : 0
-        try? handle.seek(toOffset: start)
-        guard let data = try? handle.readToEnd() else { return nil }
+        let fd = open(path, O_RDONLY | O_NONBLOCK | O_CLOEXEC)
+        guard fd >= 0 else { return nil }
+        defer { close(fd) }
+        var info = stat()
+        guard fstat(fd, &info) == 0, info.st_mode & S_IFMT == S_IFREG else { return nil }
+        let start = max(0, Int64(info.st_size) - Int64(bytes))
+        guard lseek(fd, off_t(start), SEEK_SET) >= 0 else { return nil }
+        var data = Data()
+        var buffer = [UInt8](repeating: 0, count: 64 * 1024)
+        while data.count < bytes {
+            let n = buffer.withUnsafeMutableBytes { read(fd, $0.baseAddress, min($0.count, bytes - data.count)) }
+            guard n > 0 else { break }
+            data.append(contentsOf: buffer[0..<n])
+        }
         return String(decoding: data, as: UTF8.self)
     }
 }

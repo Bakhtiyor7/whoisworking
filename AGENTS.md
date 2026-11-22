@@ -19,8 +19,11 @@ scripts/check-specs.sh                                             # specs and t
 scripts/bundle.sh                                                  # release build -> build/WhoIsWorking.app (ad-hoc signed)
 scripts/bundle.sh debug                                            # same, debug configuration
 scripts/update.sh [--skip-tests]                                   # test, build, stop the running WhoIsWorking, rebundle, reopen
+scripts/release.sh X.Y.Z --dry-run                                 # release build + DMG + checks in build/release/X.Y.Z, publishes nothing
 open build/WhoIsWorking.app
 ```
+
+`scripts/release.sh X.Y.Z` without `--dry-run` publishes to the public `Bakhtiyor7/whoisworking-releases` repo and pushes to `origin`; run it only when the user asks, and it asks for "yes" itself. Releases are described in spec 13 and `docs/release-plan.md`; the public repo's README source is `docs/releases-repo/README.md`.
 
 `--filter` matches on the Swift type and function names, not the `@Suite("…")` display names. It is a substring match, so `ReducerTests` also runs `CodexReducerTests`.
 
@@ -46,6 +49,7 @@ The `WhoIsWorking` target has no tests. Verify UI and end-to-end changes with th
 | `WHOISWORKING_LOG_EVENTS=1` | Saves every raw hook payload to `~/Library/Application Support/WhoIsWorking/event-log/` |
 | `WHOISWORKING_CLAUDE_SESSIONS=/dir` | Reads Claude session files from another folder (an empty one shows the empty state) |
 | `WHOISWORKING_SOCKET=/path` | Read by the hook script only: sends events to another socket |
+| `WHOISWORKING_FAKE_LATEST=/path.json` | Answers Check for Updates from a file (`WHOISWORKING_FAKE_STATUS`, default 200; 0 = no response), runs it when Settings opens and scrolls to it |
 
 ## Architecture
 

@@ -74,3 +74,9 @@ Given a Codex session that has been `working` with no events for 10 s, when its 
 The rollout format is documented by Codex as unstable: unknown shapes are ignored, never treated as errors.
 
 Tests: `CodexRolloutTests/aQuietWorkingCodexSessionWhoseTurnFailedBecomesAnError`, `CodexRolloutTests/recentlyActiveSessionsAreNotChecked`, `CodexRolloutTests/onlyWorkingCodexSessionsAreChecked`, `CodexRolloutTests/aMissingRolloutChangesNothing`
+
+### CDX-11 The rollout is read safely
+
+The rollout path comes from hook payloads, which any local process can send. Only a regular file is read, and at most its last 256 KB: a pipe, a device such as `/dev/zero`, a directory or a missing path gives nothing, without blocking or reading without end.
+
+Tests: `CodexRolloutTests/theTailOfARegularFileIsRead`, `CodexRolloutTests/specialFilesAreNotRead`
