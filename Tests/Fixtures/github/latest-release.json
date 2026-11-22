@@ -1,0 +1,38 @@
+{
+  "url": "https://api.github.com/repos/swiftlang/swift-format/releases/390259700",
+  "assets_url": "https://api.github.com/repos/swiftlang/swift-format/releases/390259700/assets",
+  "upload_url": "https://uploads.github.com/repos/swiftlang/swift-format/releases/390259700/assets{?name,label}",
+  "html_url": "https://github.com/swiftlang/swift-format/releases/tag/604.0.0",
+  "id": 390259700,
+  "author": {
+    "login": "example",
+    "type": "User"
+  },
+  "node_id": "RE_kwDOC7ABTs4XQuP0",
+  "tag_name": "604.0.0",
+  "target_commitish": "main",
+  "name": "604.0.0",
+  "draft": false,
+  "immutable": false,
+  "prerelease": false,
+  "created_at": "2026-09-16T20:43:31Z",
+  "updated_at": "2026-09-16T20:53:00Z",
+  "published_at": "2026-09-16T20:43:40Z",
+  "assets": [],
+  "tarball_url": "https://api.github.com/repos/swiftlang/swift-format/tarball/604.0.0",
+  "zipball_url": "https://api.github.com/repos/swiftlang/swift-format/zipball/604.0.0",
+  "body": "(release notes shortened for the fixture)",
+  "reactions": {
+    "url": "https://api.github.com/repos/swiftlang/swift-format/releases/390259700/reactions",
+    "total_count": 2,
+    "+1": 2,
+    "-1": 0,
+    "laugh": 0,
+    "hooray": 0,
+    "confused": 0,
+    "heart": 0,
+    "rocket": 0,
+    "eyes": 0
+  },
+  "mentions_count": 11
+}

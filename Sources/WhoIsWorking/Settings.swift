@@ -110,13 +110,19 @@ final class LoginItem: ObservableObject {
     @Published private(set) var enabled = false
     @Published private(set) var note: String?
 
-    /// SMAppService needs a real app bundle; `swift run` builds are not one.
-    var available: Bool { Bundle.main.bundlePath.hasSuffix(".app") }
+    /// SMAppService needs a real app bundle that stays where it is (DST-10).
+    private let location = RunLocation.classify(bundlePath: Bundle.main.bundlePath)
+    var available: Bool { location == .installed }
 
     func refresh() {
         guard available else {
             enabled = false
-            note = "Available when Who's Working runs as WhoIsWorking.app (scripts/bundle.sh)."
+            switch location {
+            case .diskImage, .translocated:
+                note = "Move Who's Working to the Applications folder and open it from there to use this."
+            case .notBundle, .installed:
+                note = "Available when Who's Working runs as WhoIsWorking.app (scripts/bundle.sh)."
+            }
             return
         }
         let status = SMAppService.mainApp.status
@@ -237,8 +243,10 @@ struct AgentInstallers {
 struct SettingsView: View {
     let installers: AgentInstallers
     @ObservedObject var login: LoginItem
+    @StateObject private var updates = UpdateChecker()
 
     var body: some View {
+        ScrollViewReader { proxy in
         Form {
             HooksSection(
                 title: "Claude Code",
@@ -266,6 +274,7 @@ struct SettingsView: View {
                 if let note = login.note {
                     Text(note).font(.callout).foregroundStyle(.secondary)
                 }
+                UpdateRows(updates: updates)
             }
             Section {
                 HStack {
@@ -275,6 +284,7 @@ struct SettingsView: View {
                     Button("Quit Who's Working") { NSApp.terminate(nil) }
                 }
             }
+            .id("bottom")
         }
         .formStyle(.grouped)
         // Five agents no longer fit a short screen, so the form scrolls.
@@ -282,6 +292,13 @@ struct SettingsView: View {
         .onAppear {
             installers.all.forEach { $0.refresh() }
             login.refresh()
+            // Debug snapshots only (WHOISWORKING_FAKE_LATEST): answer from the file, no network, and
+            // scroll to the General section so the snapshot shows the result.
+            if updates.isFaked {
+                updates.check()
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { proxy.scrollTo("bottom", anchor: .bottom) }
+            }
+        }
         }
     }
 }
