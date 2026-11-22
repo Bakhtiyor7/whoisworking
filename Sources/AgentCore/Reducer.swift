@@ -3,6 +3,8 @@ import Foundation
 public enum Reducer {
     /// A session with no pid and no events for this long is assumed gone (its SessionEnd was missed).
     public static let orphanTimeout: TimeInterval = 15 * 60
+    /// A session file's "idle" must be this much newer than the hook-derived state to override it.
+    public static let fileStatusMargin: TimeInterval = 0.5
 }
 
 /// Pure state transition: (sessions, event) -> sessions.
@@ -168,6 +170,16 @@ private func applyDiscovered(_ found: DiscoveredSession, at date: Date, to state
                 session.stateSince = found.statusUpdatedAt ?? date
             }
             session.lastEventAt = date
+        } else if session.hasHookEvents, fileState == .idle,
+                  session.state == .needsApproval || session.state == .working,
+                  let changed = found.statusUpdatedAt,
+                  changed > session.stateSince.addingTimeInterval(Reducer.fileStatusMargin)
+        {
+            // The turn ended without a hook: a declined permission prompt or an Esc interrupt.
+            session.state = .idle
+            session.stateSince = changed
+            session.pendingTool = nil
+            session.activity = nil
         }
         state.sessions[id] = session
     } else {
@@ -189,6 +201,8 @@ private func stateFromFileStatus(_ status: String?) -> SessionState? {
     switch status {
     case "busy", "working", "running": .working
     case "idle": .idle
+    // Claude Code's file says "waiting" while a permission prompt (or other dialog) is open.
+    case "waiting": .needsApproval
     default: nil
     }
 }

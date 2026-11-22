@@ -103,6 +103,39 @@ struct ClaudeCodeAdapterTests {
     }
 }
 
+/// Payloads captured from real Claude Code 2.1.329 CLI sessions on 2026-11-22 (anonymized).
+@Suite("Claude Code adapter, real payloads")
+struct ClaudeCodeRealPayloadTests {
+    private func kind(_ name: String) throws -> AgentEvent.Kind? {
+        try ClaudeCodeAdapter.event(from: fixture("claude-code-real/\(name).json"), receivedAt: now)?.kind
+    }
+
+    @Test func mapsEveryCapturedEvent() throws {
+        let tool = ToolActivity(name: "Bash", summary: "Create empty test file in /tmp", detail: "touch /tmp/perch-live-test.txt")
+        #expect(try kind("SessionStart") == .sessionStarted)
+        #expect(try kind("UserPromptSubmit") == .promptSubmitted)
+        #expect(try kind("PreToolUse") == .toolStarted(tool, subagent: false))
+        #expect(try kind("PermissionRequest") == .permissionRequested(tool))
+        #expect(try kind("Notification-permission_prompt") == .permissionNotice(message: "Claude needs your permission"))
+        #expect(try kind("Notification-idle_prompt")
+            == .waitingForReply(message: "Claude is waiting for your input", onlyIfActive: true))
+        #expect(try kind("Stop") == .stopped(lastMessage: "ready"))
+    }
+
+    @Test func realSequenceEndsInNeedsApproval() throws {
+        let events = try ["SessionStart", "UserPromptSubmit", "PreToolUse", "PermissionRequest", "Notification-permission_prompt"]
+            .enumerated()
+            .compactMap { i, name in
+                try ClaudeCodeAdapter.event(from: fixture("claude-code-real/\(name).json"), receivedAt: now.addingTimeInterval(Double(i)))
+            }
+        let state = events.map(StoreEvent.agent).reduce(SessionsState(), reduce)
+        let session = try #require(state.sessions["00000000-0000-4000-8000-000000000001"])
+        #expect(session.state == .needsApproval)
+        #expect(session.requestDetail == "touch /tmp/perch-live-test.txt")
+        #expect(session.stateSince == now.addingTimeInterval(3))
+    }
+}
+
 @Suite("Wire message")
 struct HookMessageTests {
     @Test func headerNamesTheAgent() {

@@ -298,6 +298,44 @@ struct ReducerTests {
         #expect(s.sessions["s1"]?.state == .doneUnseen)
     }
 
+    /// Declining a permission prompt fires no hook; the session file turning idle afterwards is the only signal.
+    @Test func fileGoingIdleAfterADeclinedPermissionMakesTheSessionIdle() {
+        var found = DiscoveredSession(sessionId: "s1", pid: 99, status: "waiting", statusUpdatedAt: at(2))
+        var s = run([ev(.permissionRequested(bash), 2), .discovered(found, at: at(3))])
+        #expect(s.sessions["s1"]?.state == .needsApproval)
+        found.status = "idle"
+        found.statusUpdatedAt = at(40)
+        s = run([.discovered(found, at: at(41))], from: s)
+        #expect(s.sessions["s1"]?.state == .idle)
+        #expect(s.sessions["s1"]?.pendingTool == nil)
+    }
+
+    /// Pressing Esc to interrupt fires no Stop hook either.
+    @Test func fileGoingIdleAfterAnInterruptMakesAWorkingSessionIdle() {
+        let found = DiscoveredSession(sessionId: "s1", pid: 99, status: "idle", statusUpdatedAt: at(30))
+        let s = run([ev(.promptSubmitted, 0), ev(.toolStarted(read, subagent: false), 5), .discovered(found, at: at(31))])
+        #expect(s.sessions["s1"]?.state == .idle)
+    }
+
+    @Test func staleIdleFileStatusDoesNotOverrideNewerHookState() {
+        let found = DiscoveredSession(sessionId: "s1", pid: 99, status: "idle", statusUpdatedAt: at(1.8))
+        let s = run([ev(.permissionRequested(bash), 2), .discovered(found, at: at(3))])
+        #expect(s.sessions["s1"]?.state == .needsApproval)
+    }
+
+    @Test func idleFileStatusDoesNotTouchDoneOrWaitingSessions() {
+        let found = DiscoveredSession(sessionId: "s1", pid: 99, status: "idle", statusUpdatedAt: at(50))
+        let done = run([ev(.stopped(lastMessage: nil), 2), .discovered(found, at: at(51))])
+        #expect(done.sessions["s1"]?.state == .doneUnseen)
+        let asking = run([ev(.waitingForReply(message: "?", onlyIfActive: false), 2), .discovered(found, at: at(51))])
+        #expect(asking.sessions["s1"]?.state == .waitingForReply)
+    }
+
+    @Test func waitingFileStatusWithoutHooksMeansNeedsApproval() {
+        let found = DiscoveredSession(sessionId: "s1", pid: 99, status: "waiting")
+        #expect(run([.discovered(found, at: at(0))]).sessions["s1"]?.state == .needsApproval)
+    }
+
     @Test func discoveryDoesNotReviveEndedSessions() {
         let found = DiscoveredSession(sessionId: "s1", pid: 99, status: "busy")
         let s = run([ev(.promptSubmitted, 0), ev(.sessionEnded, 1), .discovered(found, at: at(2))])

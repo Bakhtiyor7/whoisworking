@@ -1,0 +1,9 @@
+{
+  "session_id": "00000000-0000-4000-8000-000000000001",
+  "transcript_path": "/Users/me/.claude/projects/-Users-me-dev-personal/00000000-0000-4000-8000-000000000001.jsonl",
+  "cwd": "/Users/me/dev/personal",
+  "scratchpad_dir": "/private/tmp/claude-501/-Users-me-dev-personal/00000000-0000-4000-8000-000000000001/scratchpad",
+  "hook_event_name": "SessionStart",
+  "source": "startup",
+  "model": "claude-opus-5-5"
+}

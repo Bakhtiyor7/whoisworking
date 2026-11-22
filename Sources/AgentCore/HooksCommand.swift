@@ -1,14 +1,18 @@
-import AgentCore
 import Foundation
 
 /// `Perch hooks <status|preview|install|uninstall> [--settings <path>]`
 ///
 /// Command-line access to the same installer the Settings window uses. `preview` prints the file
 /// as it would be written and changes nothing. Default settings path: ~/.claude/settings.json.
-enum HooksCommand {
-    static func run(_ args: [String]) -> Int32 {
+public enum HooksCommand {
+    public static func run(
+        _ args: [String],
+        defaultSettings: URL = PerchPaths.claudeSettings,
+        hookScript: URL = PerchPaths.hookScript,
+        output: (String) -> Void = { print($0, terminator: "") }
+    ) -> Int32 {
         var rest = args
-        var settings = PerchPaths.claudeSettings
+        var settings = defaultSettings
         if let i = rest.firstIndex(of: "--settings"), i + 1 < rest.count {
             settings = URL(fileURLWithPath: (rest[i + 1] as NSString).expandingTildeInPath)
             rest.removeSubrange(i ... i + 1)
@@ -17,20 +21,23 @@ enum HooksCommand {
         do {
             switch rest.first {
             case "status":
-                print("\(settings.path): \(try installer.status())")
+                output("\(settings.path): \(try installer.status())\n")
             case "preview":
                 let action: ClaudeHookInstaller.Action = rest.dropFirst().first == "uninstall" ? .uninstall : .install
-                print(try installer.preview(action).after, terminator: "")
+                output(try installer.preview(action).after)
             case "install":
-                try HookScript.write(to: PerchPaths.hookScript)
+                try HookScript.write(to: hookScript)
                 let result = try installer.install()
-                print(result.changed ? "Installed. Backup: \(result.backupURL?.path ?? "none (new file)")" : "Already installed; nothing changed.")
+                output(result.changed ? "Installed. Backup: \(result.backupURL?.path ?? "none (new file)")\n" : "Already installed; nothing changed.\n")
             case "uninstall":
                 let result = try installer.uninstall()
-                try? FileManager.default.removeItem(at: PerchPaths.hookScript)
-                print(result.changed ? "Removed. Backup: \(result.backupURL?.path ?? "none")" : "Not installed; nothing changed.")
+                // The script serves the default settings file; only uninstalling from that file may remove it.
+                if settings.resolvingSymlinksInPath().path == defaultSettings.resolvingSymlinksInPath().path {
+                    try? FileManager.default.removeItem(at: hookScript)
+                }
+                output(result.changed ? "Removed. Backup: \(result.backupURL?.path ?? "none")\n" : "Not installed; nothing changed.\n")
             default:
-                print("usage: Perch hooks <status|preview [install|uninstall]|install|uninstall> [--settings <path>]")
+                output("usage: Perch hooks <status|preview [install|uninstall]|install|uninstall> [--settings <path>]\n")
                 return 2
             }
             return 0
