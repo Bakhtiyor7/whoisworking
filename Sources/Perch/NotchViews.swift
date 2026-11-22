@@ -113,6 +113,8 @@ struct AgentMark: View {
 /// State glyph: colour plus a distinct shape, so it reads without colour.
 struct StateIcon: View {
     let state: SessionState
+    /// A running agent process with no hook events yet: state unknown, so not a "done" tick.
+    var placeholder = false
 
     var body: some View {
         Group {
@@ -122,6 +124,7 @@ struct StateIcon: View {
             case .error: Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(Palette.red)
             case .working: Image(systemName: "circle.dotted").foregroundStyle(Palette.dim)
             case .doneUnseen: Image(systemName: "checkmark.circle.fill").foregroundStyle(Palette.green)
+            case .idle where placeholder: Image(systemName: "terminal").foregroundStyle(Palette.dim)
             case .idle: Image(systemName: "checkmark.circle").foregroundStyle(Palette.dim)
             }
         }
@@ -160,7 +163,7 @@ struct SessionRow: View {
                     .lineLimit(1)
                     .truncationMode(.tail)
                     .frame(width: 150, alignment: .leading)
-                StateIcon(state: session.state)
+                StateIcon(state: session.state, placeholder: session.isPlaceholder)
                 Text(session.rowDetail)
                     .font(.system(size: 12))
                     .foregroundStyle(Palette.dim)
@@ -219,7 +222,7 @@ struct NeedsYouCard: View {
                 .background(.black, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
             }
             HStack(spacing: 8) {
-                StateIcon(state: session.state)
+                StateIcon(state: session.state, placeholder: session.isPlaceholder)
                 Text(session.requestTitle).font(.system(size: 12)).foregroundStyle(Palette.dim).lineLimit(2)
                 Spacer()
                 Button(action: action) {
