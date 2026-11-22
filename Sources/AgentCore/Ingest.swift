@@ -186,6 +186,16 @@ public enum HookScript {
         try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: url.path)
     }
 
+    /// Deletes the script unless some agent's default hook file still has Perch's hooks.
+    public static func removeIfUnused(at url: URL, defaultSettings: (HookTarget) -> URL = { $0.defaultSettingsURL }) {
+        let stillUsed = HookTarget.all.contains { t in
+            let installer = HookInstaller(
+                target: t, settingsURL: defaultSettings(t), hookCommand: PerchPaths.hookCommand(agent: t.id))
+            return ((try? installer.status()) ?? .notInstalled) != .notInstalled
+        }
+        if !stillUsed { try? FileManager.default.removeItem(at: url) }
+    }
+
     /// True when the installed script matches this version.
     public static func isCurrent(at url: URL) -> Bool {
         (try? String(contentsOf: url, encoding: .utf8)) == contents

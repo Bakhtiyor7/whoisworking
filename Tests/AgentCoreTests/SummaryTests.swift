@@ -97,6 +97,12 @@ struct FormattingTests {
         #expect(s.rowDetail == "Waiting for your reply")
     }
 
+    @Test func placeholderRowsSayThereIsNoLiveStatusYet() {
+        let proc = DiscoveredProcess(agent: .codex, pid: 5, cwd: "/p/web", startedAt: now)
+        let s = reduce(SessionsState(), .discoveredProcess(proc, at: now))
+        #expect(s.sessions.values.first?.rowDetail == "Running · no live status yet")
+    }
+
     @Test func approvalRequestTitleNamesTheKindOfTool() {
         var s = Session(id: "x", state: .needsApproval, stateSince: now)
         s.pendingTool = ToolActivity(name: "Bash", summary: "Run", detail: "npm test")

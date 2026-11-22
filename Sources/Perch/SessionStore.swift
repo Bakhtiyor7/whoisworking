@@ -71,7 +71,7 @@ final class SessionStore: ObservableObject {
         for (title, list) in [("NEEDS YOU", s.needsYou), ("WORKING", s.working), ("DONE", s.done)] where !list.isEmpty {
             lines.append(title)
             for x in list {
-                lines.append("  \(x.displayName) | \(x.state.rawValue) | \(x.rowDetail) | \(formatElapsed(Date().timeIntervalSince(x.stateSince))) | pid \(x.pid.map(String.init) ?? "-") | hooks \(x.hasHookEvents)")
+                lines.append("  [\(x.agent.shortCode)] \(x.displayName) | \(x.state.rawValue) | \(x.rowDetail) | \(formatElapsed(Date().timeIntervalSince(x.stateSince))) | pid \(x.pid.map(String.init) ?? "-") | hooks \(x.hasHookEvents)")
                 if x.state == .needsApproval { lines.append("    request: \(x.requestTitle) :: \(x.requestDetail ?? "")") }
             }
         }
@@ -86,9 +86,17 @@ final class SessionStore: ObservableObject {
     // MARK: Socket
 
     private func startSocket() {
+        let logEvents = self.logEvents
+        let probe = self.probe
         let server = EventSocketServer(path: PerchPaths.socket.path) { [weak self] data in
+            // Runs on the socket thread while the hook is still connected, so its parent chain still exists.
             let received = Date()
-            Task { @MainActor in self?.receive(data, at: received) }
+            if logEvents { EventLog.write(data, at: received) }
+            guard let message = HookMessage.parse(data), var event = message.event(receivedAt: received) else { return }
+            if event.agent == .codex, let parent = message.parentPid {
+                event.pid = probe.ancestor(of: parent, named: CodexProcesses.processName)
+            }
+            Task { @MainActor in self?.receive(event) }
         }
         do {
             try server.start()
@@ -101,9 +109,7 @@ final class SessionStore: ObservableObject {
         }
     }
 
-    private func receive(_ data: Data, at date: Date) {
-        if logEvents { EventLog.write(data, at: date) }
-        guard let event = HookMessage.parse(data)?.event(receivedAt: date) else { return }
+    private func receive(_ event: AgentEvent) {
         apply(.agent(event))
         // A new session id usually means a new session file: pick up its pid and name now.
         if state.sessions[event.sessionId]?.pid == nil { rescan() }
@@ -117,8 +123,10 @@ final class SessionStore: ObservableObject {
         let events = discoveryEvents(known: Array(state.sessions.values), found: found, now: Date()) {
             probe.isAlive($0, startedAt: $1)
         }
+        // Codex has no session files: running interactive CLIs show as placeholders until their first hook.
+        let codexProcesses = CodexProcesses.discoveryEvents(probe: probe, now: Date())
         var next = state
-        for event in events + [.pruneOrphans(now: Date())] { next = reduce(next, event) }
+        for event in events + codexProcesses + [.pruneOrphans(now: Date())] { next = reduce(next, event) }
         if next != state { state = next }
     }
 

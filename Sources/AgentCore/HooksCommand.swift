@@ -47,10 +47,7 @@ public enum HooksCommand {
             case "uninstall":
                 let result = try chosen.uninstall()
                 // The script serves every agent's default file: remove it only when none of them still uses it.
-                let stillUsed = HookTarget.all.contains { t in
-                    (try? installer(t, defaultSettings(t)).status()) ?? .notInstalled != .notInstalled
-                }
-                if !stillUsed { try? FileManager.default.removeItem(at: hookScript) }
+                HookScript.removeIfUnused(at: hookScript, defaultSettings: defaultSettings)
                 output(result.changed ? "Removed. Backup: \(result.backupURL?.path ?? "none")\n" : "Not installed; nothing changed.\n")
             default:
                 output(usage)

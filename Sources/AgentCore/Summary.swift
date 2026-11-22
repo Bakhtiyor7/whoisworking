@@ -53,6 +53,9 @@ public func formatElapsedSpoken(_ seconds: TimeInterval) -> String {
 }
 
 extension Session {
+    /// A running agent process seen before any of its hook events.
+    public var isPlaceholder: Bool { id.hasPrefix("process:") }
+
     /// One line for a 44 pt row: what the session is doing.
     public var rowDetail: String {
         func firstLine(_ text: String?) -> String? {
@@ -65,7 +68,7 @@ extension Session {
         case .needsApproval: return pendingTool?.summary ?? firstLine(message) ?? "Needs approval"
         case .waitingForReply: return firstLine(message) ?? "Waiting for your reply"
         case .doneUnseen: return firstLine(message) ?? "Done"
-        case .idle: return "Idle"
+        case .idle: return isPlaceholder ? "Running · no live status yet" : "Idle"
         case .error: return firstLine(message) ?? "Error"
         }
     }

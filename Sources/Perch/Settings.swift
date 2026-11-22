@@ -3,16 +3,24 @@ import AppKit
 import ServiceManagement
 import SwiftUI
 
-/// Install state of the Claude Code hooks. Writes to `~/.claude/settings.json` only when the user clicks.
+/// Install state of one agent's hooks. Writes to the agent's hook file only when the user clicks.
 @MainActor
 final class HookManager: ObservableObject {
     @Published private(set) var status: HookInstallStatus?
     @Published private(set) var problem: String?
     @Published private(set) var lastResult: String?
 
-    let installer = ClaudeHookInstaller(
-        settingsURL: PerchPaths.claudeSettings,
-        hookCommand: PerchPaths.hookCommand(agent: "claude-code"))
+    let target: HookTarget
+    let installer: HookInstaller
+
+    init(target: HookTarget) {
+        self.target = target
+        installer = HookInstaller(
+            target: target, settingsURL: target.defaultSettingsURL,
+            hookCommand: PerchPaths.hookCommand(agent: target.id))
+    }
+
+    var displayPath: String { "~/" + target.defaultSettingsPath }
 
     func refresh() {
         do {
@@ -22,7 +30,7 @@ final class HookManager: ObservableObject {
             status = nil
             problem = "\(error)"
         }
-        // Keep the installed script current (it lives in Perch's own folder, not in ~/.claude).
+        // Keep the installed script current (it lives in Perch's own folder, not in the agent's).
         if status == .installed || status == .partial, !HookScript.isCurrent(at: PerchPaths.hookScript) {
             try? HookScript.write(to: PerchPaths.hookScript)
         }
@@ -45,7 +53,8 @@ final class HookManager: ObservableObject {
     func uninstall() {
         do {
             let result = try installer.uninstall()
-            try? FileManager.default.removeItem(at: PerchPaths.hookScript)
+            // The script is shared by all agents; it goes only when no agent's hooks still use it.
+            HookScript.removeIfUnused(at: PerchPaths.hookScript)
             lastResult = result.backupURL.map { "Removed. Backup: \($0.lastPathComponent)" }
                 ?? (result.changed ? "Removed." : "Not installed; nothing changed.")
         } catch {
@@ -76,7 +85,7 @@ final class LoginItem: ObservableObject {
         note = status == .requiresApproval ? "Allow Perch in System Settings › General › Login Items." : nil
     }
 
-    func set(_ on: Bool) {
+    func update(_ on: Bool) {
         do {
             if on { try SMAppService.mainApp.register() } else { try SMAppService.mainApp.unregister() }
         } catch {
@@ -88,70 +97,50 @@ final class LoginItem: ObservableObject {
     }
 }
 
-struct SettingsView: View {
+struct HooksSection: View {
+    let title: String
+    let note: String?
     @ObservedObject var hooks: HookManager
-    @ObservedObject var login: LoginItem
     @State private var confirmInstall = false
     @State private var confirmUninstall = false
 
     var body: some View {
-        Form {
-            Section("Claude Code") {
-                LabeledContent("Hooks") {
-                    HStack(spacing: 6) {
-                        Image(systemName: statusSymbol).foregroundStyle(statusColor)
-                        Text(statusText)
-                    }
-                }
-                Text("Perch adds one hook to \(ClaudeHookInstaller.events.count) events in ~/.claude/settings.json. Other tools' hooks stay as they are. A backup is saved next to the file before every change.")
-                    .font(.callout).foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-                HStack {
-                    Button(hooks.status == .installed ? "Reinstall hooks" : "Install hooks…") { confirmInstall = true }
-                    Button("Uninstall hooks…") { confirmUninstall = true }
-                        .disabled(hooks.status == .notInstalled || hooks.status == nil)
-                }
-                if let problem = hooks.problem {
-                    Text(problem).font(.callout).foregroundStyle(.red).textSelection(.enabled)
-                }
-                if let last = hooks.lastResult {
-                    Text(last).font(.callout).foregroundStyle(.secondary).textSelection(.enabled)
+        Section(title) {
+            LabeledContent("Hooks") {
+                HStack(spacing: 6) {
+                    Image(systemName: statusSymbol).foregroundStyle(statusColor)
+                    Text(statusText)
                 }
             }
-            Section("General") {
-                Toggle("Open at login", isOn: Binding(get: { login.enabled }, set: { login.set($0) }))
-                    .disabled(!login.available)
-                if let note = login.note {
-                    Text(note).font(.callout).foregroundStyle(.secondary)
-                }
+            Text("Perch adds one hook to \(hooks.target.events.count) events in \(hooks.displayPath). Other tools' hooks stay as they are. A backup is saved next to the file before every change.")
+                .font(.callout).foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            if let note {
+                Text(note).font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             }
-            Section {
-                HStack {
-                    Text("Perch \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "dev")")
-                        .foregroundStyle(.secondary)
-                    Spacer()
-                    Button("Quit Perch") { NSApp.terminate(nil) }
-                }
+            HStack {
+                Button(hooks.status == .installed ? "Reinstall hooks" : "Install hooks…") { confirmInstall = true }
+                Button("Uninstall hooks…") { confirmUninstall = true }
+                    .disabled(hooks.status == .notInstalled || hooks.status == nil)
+            }
+            if let problem = hooks.problem {
+                Text(problem).font(.callout).foregroundStyle(.red).textSelection(.enabled)
+            }
+            if let last = hooks.lastResult {
+                Text(last).font(.callout).foregroundStyle(.secondary).textSelection(.enabled)
             }
         }
-        .formStyle(.grouped)
-        .frame(width: 460)
-        .fixedSize(horizontal: false, vertical: true)
-        .onAppear {
-            hooks.refresh()
-            login.refresh()
-        }
-        .alert("Install Claude Code hooks?", isPresented: $confirmInstall) {
+        .alert("Install \(title) hooks?", isPresented: $confirmInstall) {
             Button("Install") { hooks.install() }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("Perch will back up ~/.claude/settings.json, then add its hook to: \(ClaudeHookInstaller.events.joined(separator: ", ")). New Claude Code sessions pick it up; running ones may need a restart.")
+            Text("Perch will back up \(hooks.displayPath), then add its hook to: \(hooks.target.events.joined(separator: ", ")).")
         }
-        .alert("Uninstall Claude Code hooks?", isPresented: $confirmUninstall) {
+        .alert("Uninstall \(title) hooks?", isPresented: $confirmUninstall) {
             Button("Uninstall", role: .destructive) { hooks.uninstall() }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("Perch will back up ~/.claude/settings.json, then remove only its own hook entries.")
+            Text("Perch will back up \(hooks.displayPath), then remove only its own hook entries.")
         }
     }
 
@@ -181,20 +170,64 @@ struct SettingsView: View {
     }
 }
 
+struct SettingsView: View {
+    @ObservedObject var claude: HookManager
+    @ObservedObject var codex: HookManager
+    @ObservedObject var login: LoginItem
+
+    var body: some View {
+        Form {
+            HooksSection(
+                title: "Claude Code",
+                note: "New sessions pick the hooks up; running ones may need a restart.",
+                hooks: claude)
+            HooksSection(
+                title: "Codex",
+                note: "Codex runs new hooks only after you trust them. In the Codex CLI type /hooks and trust the Perch entries; in the Codex app use Review hooks (or Settings › Hooks). Until then Codex skips them.",
+                hooks: codex)
+            Section("General") {
+                Toggle("Open at login", isOn: Binding(get: { login.enabled }, set: { login.update($0) }))
+                    .disabled(!login.available)
+                if let note = login.note {
+                    Text(note).font(.callout).foregroundStyle(.secondary)
+                }
+            }
+            Section {
+                HStack {
+                    Text("Perch \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "dev")")
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Button("Quit Perch") { NSApp.terminate(nil) }
+                }
+            }
+        }
+        .formStyle(.grouped)
+        .frame(width: 480)
+        .fixedSize(horizontal: false, vertical: true)
+        .onAppear {
+            claude.refresh()
+            codex.refresh()
+            login.refresh()
+        }
+    }
+}
+
 @MainActor
 final class SettingsWindowController {
     private var window: NSWindow?
-    private let hooks: HookManager
+    private let claude: HookManager
+    private let codex: HookManager
     private let login: LoginItem
 
-    init(hooks: HookManager, login: LoginItem) {
-        self.hooks = hooks
+    init(claude: HookManager, codex: HookManager, login: LoginItem) {
+        self.claude = claude
+        self.codex = codex
         self.login = login
     }
 
     func show() {
         if window == nil {
-            let controller = NSHostingController(rootView: SettingsView(hooks: hooks, login: login))
+            let controller = NSHostingController(rootView: SettingsView(claude: claude, codex: codex, login: login))
             let window = NSWindow(contentViewController: controller)
             window.title = "Perch Settings"
             window.styleMask = [.titled, .closable]
@@ -202,7 +235,8 @@ final class SettingsWindowController {
             window.center()
             self.window = window
         }
-        hooks.refresh()
+        claude.refresh()
+        codex.refresh()
         login.refresh()
         NSApp.activate()
         window?.makeKeyAndOrderFront(nil)

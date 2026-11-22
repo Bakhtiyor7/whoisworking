@@ -334,8 +334,8 @@ struct EmptyStateView: View {
             Image(systemName: "moon.zzz").font(.system(size: 22)).foregroundStyle(Palette.dim)
             Text("No agent sessions").font(.system(size: 14, weight: .semibold))
             Text(hooksInstalled
-                ? "Start Claude Code and its sessions will show up here."
-                : "Claude Code sessions show up here. Install the hooks for live status.")
+                ? "Start Claude Code or Codex and its sessions will show up here."
+                : "Claude Code and Codex sessions show up here. Install the hooks for live status.")
                 .font(.system(size: 12)).foregroundStyle(Palette.dim)
                 .multilineTextAlignment(.center)
             if !hooksInstalled {

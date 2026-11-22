@@ -5,14 +5,18 @@ import AppKit
 final class AppDelegate: NSObject, NSApplicationDelegate {
     let store = SessionStore()
     let actions = AppActions()
-    let hooks = HookManager()
+    let claudeHooks = HookManager(target: .claudeCode)
+    let codexHooks = HookManager(target: .codex)
     let login = LoginItem()
-    lazy var settings = SettingsWindowController(hooks: hooks, login: login)
+    lazy var settings = SettingsWindowController(claude: claudeHooks, codex: codexHooks, login: login)
     lazy var notch = NotchPanelController(store: store, actions: actions)
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        hooks.refresh()
-        actions.hooksInstalled = { [weak self] in self?.hooks.status == .installed }
+        claudeHooks.refresh()
+        codexHooks.refresh()
+        actions.hooksInstalled = { [weak self] in
+            self?.claudeHooks.status == .installed || self?.codexHooks.status == .installed
+        }
         actions.openSettings = { [weak self] in
             self?.notch.collapse()
             self?.settings.show()
