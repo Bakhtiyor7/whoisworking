@@ -132,21 +132,29 @@ public struct HookMessage: Equatable, Sendable {
 
     public var agent: String
     public var payload: Data
+    /// Parent pid of the hook script (`ppid=` in the header), used to find the agent process.
+    public var parentPid: Int32?
 
-    public init(agent: String, payload: Data) {
+    public init(agent: String, payload: Data, parentPid: Int32? = nil) {
         self.agent = agent
         self.payload = payload
+        self.parentPid = parentPid
     }
 
     public static func parse(_ data: Data) -> HookMessage? {
         let prefix = Data(headerPrefix.utf8)
         if data.starts(with: prefix) {
             guard let newline = data.firstIndex(of: UInt8(ascii: "\n")) else { return nil }
-            let agentBytes = data[data.startIndex + prefix.count ..< newline]
-            guard let agent = String(data: agentBytes, encoding: .utf8)?.trimmingCharacters(in: .whitespaces),
-                  !agent.isEmpty
-            else { return nil }
-            return HookMessage(agent: agent, payload: Data(data[(newline + 1)...]))
+            let headerBytes = data[data.startIndex + prefix.count ..< newline]
+            // "<agent> [key=value ...]"
+            guard let header = String(data: headerBytes, encoding: .utf8) else { return nil }
+            let words = header.split(separator: " ", omittingEmptySubsequences: true).map(String.init)
+            guard let agent = words.first, !agent.contains("=") else { return nil }
+            var parentPid: Int32?
+            for word in words.dropFirst() where word.hasPrefix("ppid=") {
+                parentPid = Int32(word.dropFirst(5)).flatMap { $0 > 1 ? $0 : nil }
+            }
+            return HookMessage(agent: agent, payload: Data(data[(newline + 1)...]), parentPid: parentPid)
         }
         // No header: a bare JSON object is treated as Claude Code.
         let firstByte = data.first { !($0 == 0x20 || $0 == 0x0A || $0 == 0x0D || $0 == 0x09) }
@@ -157,6 +165,7 @@ public struct HookMessage: Equatable, Sendable {
     public func event(receivedAt date: Date) -> AgentEvent? {
         switch agent {
         case "claude-code": ClaudeCodeAdapter.event(from: payload, receivedAt: date)
+        case "codex": CodexAdapter.event(from: payload, receivedAt: date)
         default: nil
         }
     }

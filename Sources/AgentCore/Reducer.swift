@@ -21,6 +21,13 @@ public func reduce(_ state: SessionsState, _ event: StoreEvent) -> SessionsState
         applyAgent(e, to: &next)
     case .discovered(let found, let date):
         applyDiscovered(found, at: date, to: &next)
+    case .discoveredProcess(let proc, let date):
+        // Only while no session (real or placeholder) is known for that process.
+        guard !next.sessions.values.contains(where: { $0.pid == proc.pid }) else { break }
+        let id = DiscoveredProcess.placeholderId(pid: proc.pid)
+        next.sessions[id] = Session(
+            id: id, agent: proc.agent, state: .idle, stateSince: proc.startedAt ?? date, lastEventAt: date,
+            cwd: proc.cwd, pid: proc.pid, activity: nil)
     case .processExited(let pid):
         for (id, session) in next.sessions where session.pid == pid {
             next.sessions[id] = nil
@@ -69,6 +76,12 @@ private func applyAgent(_ e: AgentEvent, to state: inout SessionsState) {
     session.hasHookEvents = true
     session.lastEventAt = e.date
     if let cwd = e.cwd, !cwd.isEmpty { session.cwd = cwd }
+    if let pid = e.pid {
+        session.pid = pid
+        // The process now has a real session: drop its placeholder.
+        let placeholder = DiscoveredProcess.placeholderId(pid: pid)
+        if placeholder != id { state.sessions[placeholder] = nil }
+    }
 
     func enter(_ newState: SessionState) {
         if session.state != newState {
@@ -81,6 +94,11 @@ private func applyAgent(_ e: AgentEvent, to state: inout SessionsState) {
     switch e.kind {
     case .sessionStarted, .sessionEnded:
         break
+
+    case .interrupted:
+        // The user stopped the turn themselves, so they have seen it.
+        enter(.idle)
+        session.activity = nil
 
     case .promptSubmitted, .resumed:
         enter(.working)

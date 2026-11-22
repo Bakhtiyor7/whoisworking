@@ -1,0 +1,8 @@
+{
+  "session_id": "019a7c1e-2222-7b5b-9c3d-000000000001",
+  "transcript_path": "/Users/me/.codex/sessions/2026/11/22/rollout-2026-11-22T20-00-00-019a7c1e-2222-7b5b-9c3d-000000000001.jsonl",
+  "cwd": "/Users/me/api-server",
+  "model": "gpt-5.5-codex",
+  "hook_event_name": "SessionEnd",
+  "reason": "other"
+}

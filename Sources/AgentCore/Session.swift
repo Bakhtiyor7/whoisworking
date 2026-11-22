@@ -3,16 +3,19 @@ import Foundation
 /// Which coding agent a session belongs to. Only Claude Code in v1.
 public enum AgentKind: String, Sendable, Codable, Equatable {
     case claudeCode
+    case codex
 
     public var shortCode: String {
         switch self {
         case .claudeCode: "CC"
+        case .codex: "CX"
         }
     }
 
     public var displayName: String {
         switch self {
         case .claudeCode: "Claude Code"
+        case .codex: "Codex"
         }
     }
 }
@@ -148,6 +151,8 @@ public struct AgentEvent: Equatable, Sendable {
         case turnIdle(message: String?)
         /// The user answered a question dialog; the agent continues.
         case resumed
+        /// The user interrupted the turn (Codex `Interrupt`).
+        case interrupted
         case stopped(lastMessage: String?)
         case failed(error: String)
         /// A subagent started or stopped. Never creates a top-level session.
@@ -158,13 +163,18 @@ public struct AgentEvent: Equatable, Sendable {
     public var date: Date
     public var agent: AgentKind
     public var cwd: String?
+    /// The agent process that ran the hook, when known (resolved from the hook's parent chain).
+    public var pid: Int32?
     public var kind: Kind
 
-    public init(sessionId: String, date: Date, agent: AgentKind = .claudeCode, cwd: String? = nil, kind: Kind) {
+    public init(
+        sessionId: String, date: Date, agent: AgentKind = .claudeCode, cwd: String? = nil, pid: Int32? = nil, kind: Kind
+    ) {
         self.sessionId = sessionId
         self.date = date
         self.agent = agent
         self.cwd = cwd
+        self.pid = pid
         self.kind = kind
     }
 }
@@ -198,10 +208,29 @@ public struct DiscoveredSession: Equatable, Sendable {
     }
 }
 
+/// A running agent process found without a session id (e.g. a Codex CLI started before Perch).
+public struct DiscoveredProcess: Equatable, Sendable {
+    public var agent: AgentKind
+    public var pid: Int32
+    public var cwd: String?
+    public var startedAt: Date?
+
+    public init(agent: AgentKind, pid: Int32, cwd: String?, startedAt: Date?) {
+        self.agent = agent
+        self.pid = pid
+        self.cwd = cwd
+        self.startedAt = startedAt
+    }
+
+    public static func placeholderId(pid: Int32) -> String { "process:\(pid)" }
+}
+
 /// Everything that can change the session list.
 public enum StoreEvent: Equatable, Sendable {
     case agent(AgentEvent)
     case discovered(DiscoveredSession, at: Date)
+    /// A running agent process with no session yet: shown as an idle placeholder until its first hook event.
+    case discoveredProcess(DiscoveredProcess, at: Date)
     case processExited(pid: Int32)
     /// The user saw these sessions in the expanded panel.
     case viewed(ids: [String], at: Date)

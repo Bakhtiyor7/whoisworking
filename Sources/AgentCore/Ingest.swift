@@ -215,10 +215,34 @@ public struct ProcessProbe: Sendable {
 
     private let startTime: @Sendable (Int32) -> Date?
     private let parentLookup: @Sendable (Int32) -> Int32?
+    private let nameLookup: @Sendable (Int32) -> String?
+    private let argumentsLookup: @Sendable (Int32) -> [String]?
 
-    public init(startTime: @escaping @Sendable (Int32) -> Date?, parent: @escaping @Sendable (Int32) -> Int32? = { _ in nil }) {
+    public init(
+        startTime: @escaping @Sendable (Int32) -> Date?,
+        parent: @escaping @Sendable (Int32) -> Int32? = { _ in nil },
+        name: @escaping @Sendable (Int32) -> String? = { _ in nil },
+        arguments: @escaping @Sendable (Int32) -> [String]? = { _ in nil }
+    ) {
         self.startTime = startTime
         self.parentLookup = parent
+        self.nameLookup = name
+        self.argumentsLookup = arguments
+    }
+
+    public func name(of pid: Int32) -> String? { nameLookup(pid) }
+    public func arguments(of pid: Int32) -> [String]? { argumentsLookup(pid) }
+
+    /// `pid` itself or its nearest ancestor whose process name is `named`.
+    public func ancestor(of pid: Int32, named: String) -> Int32? {
+        var current: Int32? = pid
+        var steps = 0
+        while let p = current, p > 1, steps < 32 {
+            if name(of: p) == named { return p }
+            current = parent(of: p)
+            steps += 1
+        }
+        return nil
     }
 
     public static let system = ProcessProbe(
@@ -226,8 +250,37 @@ public struct ProcessProbe: Sendable {
             let tv = info.kp_proc.p_starttime
             return Date(timeIntervalSince1970: TimeInterval(tv.tv_sec) + TimeInterval(tv.tv_usec) / 1_000_000)
         } },
-        parent: { pid in kinfo(pid).map { $0.kp_eproc.e_ppid } }
+        parent: { pid in kinfo(pid).map { $0.kp_eproc.e_ppid } },
+        name: { pid in
+            kinfo(pid).map { info in
+                withUnsafeBytes(of: info.kp_proc.p_comm) { raw in
+                    String(decoding: raw.prefix { $0 != 0 }, as: UTF8.self)
+                }
+            }
+        },
+        arguments: { pid in processArguments(pid) }
     )
+
+    /// argv of a process via KERN_PROCARGS2 (only works for the current user's processes).
+    private static func processArguments(_ pid: Int32) -> [String]? {
+        var mib: [Int32] = [CTL_KERN, KERN_PROCARGS2, pid]
+        var size = 0
+        guard sysctl(&mib, 3, nil, &size, nil, 0) == 0, size > MemoryLayout<Int32>.size else { return nil }
+        var buffer = [UInt8](repeating: 0, count: size)
+        guard sysctl(&mib, 3, &buffer, &size, nil, 0) == 0 else { return nil }
+        let argc = buffer.withUnsafeBytes { $0.load(as: Int32.self) }
+        var index = MemoryLayout<Int32>.size
+        while index < size, buffer[index] != 0 { index += 1 }  // executable path
+        while index < size, buffer[index] == 0 { index += 1 }  // padding
+        var args: [String] = []
+        while args.count < argc, index < size {
+            let start = index
+            while index < size, buffer[index] != 0 { index += 1 }
+            args.append(String(decoding: buffer[start ..< index], as: UTF8.self))
+            index += 1
+        }
+        return args
+    }
 
     /// The process exists and, when `startedAt` is known, is not a later process that reused the pid.
     public func isAlive(_ pid: Int32, startedAt: Date?) -> Bool {

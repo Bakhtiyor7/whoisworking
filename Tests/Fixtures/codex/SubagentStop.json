@@ -1,0 +1,14 @@
+{
+  "session_id": "019a7c1e-2222-7b5b-9c3d-000000000001",
+  "transcript_path": "/Users/me/.codex/sessions/2026/11/22/rollout-2026-11-22T20-00-00-019a7c1e-2222-7b5b-9c3d-000000000001.jsonl",
+  "cwd": "/Users/me/api-server",
+  "model": "gpt-5.5-codex",
+  "hook_event_name": "SubagentStop",
+  "turn_id": "turn_1",
+  "permission_mode": "default",
+  "agent_id": "agent_1",
+  "agent_type": "explorer",
+  "agent_transcript_path": null,
+  "stop_hook_active": false,
+  "last_assistant_message": "Done."
+}
