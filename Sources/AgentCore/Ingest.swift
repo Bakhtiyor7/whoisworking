@@ -23,7 +23,9 @@ public enum PerchPaths {
     }
 
     public static var claudeSessions: URL {
-        FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".claude/sessions", isDirectory: true)
+        // Debug override, used to show the empty state.
+        if let dir = ProcessInfo.processInfo.environment["PERCH_CLAUDE_SESSIONS"] { return URL(fileURLWithPath: dir) }
+        return FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".claude/sessions", isDirectory: true)
     }
 }
 

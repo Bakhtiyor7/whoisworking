@@ -104,6 +104,13 @@ final class NotchPanelController {
             snapshot(to: "\(dir)/expanded.png")
             holdOpen = false
             if !forcedOpen { setExpanded(false) }
+            // Settings window, if open: AppKit-backed, so cacheDisplay works there.
+            if let window = NSApp.windows.first(where: { $0.title == "Perch Settings" && $0.isVisible }),
+               let view = window.contentView, let rep = view.bitmapImageRepForCachingDisplay(in: view.bounds)
+            {
+                view.cacheDisplay(in: view.bounds, to: rep)
+                try? rep.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: "\(dir)/settings.png"))
+            }
         }
     }
 
@@ -128,7 +135,8 @@ final class NotchPanelController {
     func layout() {
         guard let screen, let panel else { return }
         let top = screen.safeAreaInsets.top
-        if top > 0, let left = screen.auxiliaryTopLeftArea, let right = screen.auxiliaryTopRightArea {
+        let pretendNoNotch = ProcessInfo.processInfo.environment["PERCH_NO_NOTCH"] == "1"  // debug: pill layout
+        if top > 0, !pretendNoNotch, let left = screen.auxiliaryTopLeftArea, let right = screen.auxiliaryTopRightArea {
             model.hasNotch = true
             model.notchHeight = top
             model.notchWidth = screen.frame.width - left.width - right.width
