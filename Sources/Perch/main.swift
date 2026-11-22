@@ -38,6 +38,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 }
 
+if CommandLine.arguments.count > 1, CommandLine.arguments[1] == "hooks" {
+    exit(HooksCommand.run(Array(CommandLine.arguments.dropFirst(2))))
+}
+
 MainActor.assumeIsolated {
     let app = NSApplication.shared
     let delegate = AppDelegate()
