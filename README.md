@@ -90,7 +90,7 @@ This removes exactly the entries whose command contains `/Perch/perch-hook`. If 
 
 ## Codex: what is covered and what is not
 
-Tested with Codex CLI 0.163.0; the ChatGPT app's own Codex is a newer build.
+Tested live with Codex CLI 0.163.0 and 0.171.0 (needs approval, approve, done; a failed turn; a daemon restart during an open approval, which Codex resumes with `SessionStart` source `resume`). Neither build has a hook event for failed model requests.
 
 - Covered: working, needs approval (with the full command), done, interrupted, and turns that fail. Codex 0.163 fires no hook when a turn fails (for example an API error), so for a Codex session that has said "working" for 10 s without events, Perch reads the end of its rollout (`transcript_path`) and shows the error or marks it done. Codex calls that file format unstable, so this is best effort.
 - No "waiting for your reply" for Codex: Codex has no notification event for questions.
