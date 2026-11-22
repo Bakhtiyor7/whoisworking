@@ -150,6 +150,21 @@ struct CodexReducerTests {
         #expect(Set(s.sessions.keys) == ["c1"])
     }
 
+    /// The terminal CLI and the daemon running its session have different pids; one folder, one row.
+    @Test func noPlaceholderNextToALiveCodexSessionInTheSameFolder() {
+        var s = reduce(SessionsState(), ev(.promptSubmitted, 0, pid: 200))  // hooks from the daemon
+        let cli = DiscoveredProcess(agent: .codex, pid: 100, cwd: "/Users/me/web", startedAt: now)
+        s = reduce(s, .discoveredProcess(cli, at: now))
+        #expect(Set(s.sessions.keys) == ["c1"])
+    }
+
+    @Test func aLiveSessionReplacesThePlaceholderForItsFolder() {
+        let cli = DiscoveredProcess(agent: .codex, pid: 100, cwd: "/Users/me/web", startedAt: now)
+        var s = reduce(SessionsState(), .discoveredProcess(cli, at: now))
+        s = reduce(s, ev(.promptSubmitted, 5, pid: 200))
+        #expect(Set(s.sessions.keys) == ["c1"])
+    }
+
     @Test func placeholdersGoWhenTheProcessExits() {
         let proc = DiscoveredProcess(agent: .codex, pid: 900, cwd: nil, startedAt: now)
         var s = reduce(SessionsState(), .discoveredProcess(proc, at: now))
@@ -189,14 +204,16 @@ struct CodexProcessTests {
         #expect(probe.ancestor(of: 50, named: "codex") == nil)
     }
 
-    /// Seen live: the Codex CLI (with a terminal) runs hooks inside a child `codex app-server` (no terminal).
-    @Test func hooksRunByAnAppServerChildBelongToTheTerminalCli() {
+    /// Seen live: Codex CLI 0.163 runs the conversation in a `codex app-server` daemon that outlives the
+    /// terminal CLI ("Disconnected from this task. Any running work continues."). The session belongs to
+    /// the process that runs its hooks, so closing the CLI window does not drop it.
+    @Test func hooksRunByTheAppServerDaemonBelongToTheDaemon() {
         // hook (300) <- sh (250) <- codex app-server (200, no tty) <- codex CLI (100, tty) <- zsh (50)
         let parents: [Int32: Int32] = [300: 250, 250: 200, 200: 100, 100: 50, 50: 1]
         let names: [Int32: String] = [300: "sh", 250: "sh", 200: "codex", 100: "codex", 50: "zsh"]
         let probe = ProcessProbe(
             startTime: { _ in nil }, parent: { parents[$0] }, name: { names[$0] }, hasTerminal: { $0 == 100 || $0 == 50 })
-        #expect(CodexProcesses.owningProcess(ofHookParent: 300, probe: probe) == 100)
+        #expect(CodexProcesses.owningProcess(ofHookParent: 300, probe: probe) == 200)
     }
 
     @Test func hooksInTheChatGPTAppBelongToItsAppServer() {

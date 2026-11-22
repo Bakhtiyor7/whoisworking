@@ -104,20 +104,11 @@ public enum CodexProcesses {
         "-C", "--cd", "-i", "--image", "--add-dir", "--enable", "--disable", "--local-provider",
     ]
 
-    /// The Codex process a hook belongs to: the topmost `codex` above it that has a terminal
-    /// (the CLI, which may run hooks in a child `codex app-server`), else the nearest `codex`
-    /// (the app-server inside ChatGPT.app, which has no terminal).
+    /// The Codex process a hook belongs to: the nearest `codex` above it. In Codex CLI 0.163 that is
+    /// often a `codex app-server` daemon that keeps the conversation after the terminal CLI closes;
+    /// in ChatGPT.app it is the app's own app-server; for in-process hooks it is the CLI itself.
     public static func owningProcess(ofHookParent pid: Int32, probe: ProcessProbe) -> Int32? {
-        guard let nearest = probe.ancestor(of: pid, named: processName) else { return nil }
-        var owner = probe.hasTerminal(nearest) ? nearest : nil
-        var current = probe.parent(of: nearest)
-        var steps = 0
-        while let p = current, p > 1, steps < 32 {
-            if probe.name(of: p) == processName, probe.hasTerminal(p) { owner = p }
-            current = probe.parent(of: p)
-            steps += 1
-        }
-        return owner ?? nearest
+        probe.ancestor(of: pid, named: processName)
     }
 
     /// Interactive Codex CLIs that are running now. The reducer shows them as idle placeholders until

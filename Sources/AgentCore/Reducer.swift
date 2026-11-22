@@ -22,8 +22,13 @@ public func reduce(_ state: SessionsState, _ event: StoreEvent) -> SessionsState
     case .discovered(let found, let date):
         applyDiscovered(found, at: date, to: &next)
     case .discoveredProcess(let proc, let date):
-        // Only while no session (real or placeholder) is known for that process.
-        guard !next.sessions.values.contains(where: { $0.pid == proc.pid }) else { break }
+        // Only while no session is known for that process, and no live session of that agent shares its
+        // folder (a CLI and the daemon running its conversation have different pids).
+        guard !next.sessions.values.contains(where: { $0.pid == proc.pid }),
+              !next.sessions.values.contains(where: {
+                  !$0.isPlaceholder && $0.agent == proc.agent && proc.cwd != nil && $0.cwd == proc.cwd
+              })
+        else { break }
         let id = DiscoveredProcess.placeholderId(pid: proc.pid)
         next.sessions[id] = Session(
             id: id, agent: proc.agent, state: .idle, stateSince: proc.startedAt ?? date, lastEventAt: date,
@@ -83,6 +88,13 @@ private func applyAgent(_ e: AgentEvent, to state: inout SessionsState) {
         // The process now has a real session: drop its placeholder.
         let placeholder = DiscoveredProcess.placeholderId(pid: pid)
         if placeholder != id { state.sessions[placeholder] = nil }
+    }
+    // A live session replaces placeholders of the same agent in the same folder.
+    if let cwd = session.cwd {
+        for (otherId, other) in state.sessions
+        where otherId != id && other.isPlaceholder && other.agent == session.agent && other.cwd == cwd {
+            state.sessions[otherId] = nil
+        }
     }
 
     func enter(_ newState: SessionState) {
