@@ -36,9 +36,9 @@ public enum ClaudeCodeAdapter {
         let message = json["message"] as? String
         switch json["notification_type"] as? String {
         case "permission_prompt": return .permissionNotice(message: message)
-        case "idle_prompt": return .waitingForReply(message: message, onlyIfActive: true)
+        case "idle_prompt": return .turnIdle(message: message)
         case "elicitation_dialog", "elicitation_url_dialog", "agent_needs_input":
-            return .waitingForReply(message: message, onlyIfActive: false)
+            return .waitingForReply(message: message)
         case "elicitation_complete", "elicitation_response": return .resumed
         default: return nil
         }

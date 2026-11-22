@@ -103,29 +103,51 @@ struct ReducerTests {
         #expect(s.sessions["s1"]?.state == .working)
     }
 
-    @Test func idleNotificationAfterStopMeansWaitingForReply() {
+    /// Claude Code sends `idle_prompt` 60 s after every Stop. Decision (2026-11-22): a finished session stays in Done.
+    @Test func idleNotificationAfterStopKeepsTheSessionInDone() {
         let s = run([
             ev(.promptSubmitted, 0),
-            ev(.stopped(lastMessage: "Which option?"), 10),
-            ev(.waitingForReply(message: "Claude is waiting for your input", onlyIfActive: true), 70),
+            ev(.stopped(lastMessage: "All tests pass."), 10),
+            ev(.turnIdle(message: "Claude is waiting for your input"), 70),
         ])
-        #expect(s.sessions["s1"]?.state == .waitingForReply)
+        #expect(s.sessions["s1"]?.state == .doneUnseen)
+        #expect(s.sessions["s1"]?.stateSince == at(10))
+        #expect(s.sessions["s1"]?.message == "All tests pass.")
     }
 
-    @Test func idleNotificationIsIgnoredOnceTheUserHasSeenTheSession() {
+    @Test func idleNotificationAfterTheUserSawTheSessionKeepsItIdle() {
         let s = run([
             ev(.promptSubmitted, 0),
             ev(.stopped(lastMessage: nil), 10),
             .viewed(ids: ["s1"], at: at(20)),
-            ev(.waitingForReply(message: "Claude is waiting for your input", onlyIfActive: true), 70),
+            ev(.turnIdle(message: "Claude is waiting for your input"), 70),
         ])
         #expect(s.sessions["s1"]?.state == .idle)
+    }
+
+    /// If Stop was missed, the idle notification still tells us the turn ended.
+    @Test func idleNotificationWhileWorkingMeansDoneUnseen() {
+        let s = run([
+            ev(.promptSubmitted, 0),
+            ev(.toolStarted(bash, subagent: false), 5),
+            ev(.turnIdle(message: "Claude is waiting for your input"), 70),
+        ])
+        #expect(s.sessions["s1"]?.state == .doneUnseen)
+        #expect(s.sessions["s1"]?.activity == nil)
+    }
+
+    @Test func idleNotificationDoesNotClearAnApprovalOrAQuestion() {
+        let approval = run([ev(.permissionRequested(bash), 0), ev(.turnIdle(message: nil), 70)])
+        #expect(approval.sessions["s1"]?.state == .needsApproval)
+        let question = run([ev(.waitingForReply(message: "Pick one"), 0), ev(.turnIdle(message: nil), 70)])
+        #expect(question.sessions["s1"]?.state == .waitingForReply)
+        #expect(question.sessions["s1"]?.message == "Pick one")
     }
 
     @Test func questionDialogMeansWaitingForReplyEvenWhenIdle() {
         let s = run([
             ev(.sessionStarted, 0),
-            ev(.waitingForReply(message: "Pick one", onlyIfActive: false), 5),
+            ev(.waitingForReply(message: "Pick one"), 5),
         ])
         #expect(s.sessions["s1"]?.state == .waitingForReply)
         #expect(s.sessions["s1"]?.message == "Pick one")
@@ -134,7 +156,7 @@ struct ReducerTests {
     @Test func answeringAQuestionMeansWorkingAgain() {
         let s = run([
             ev(.promptSubmitted, 0),
-            ev(.waitingForReply(message: "Pick one", onlyIfActive: false), 5),
+            ev(.waitingForReply(message: "Pick one"), 5),
             ev(.resumed, 9),
         ])
         #expect(s.sessions["s1"]?.state == .working)
@@ -327,7 +349,7 @@ struct ReducerTests {
         let found = DiscoveredSession(sessionId: "s1", pid: 99, status: "idle", statusUpdatedAt: at(50))
         let done = run([ev(.stopped(lastMessage: nil), 2), .discovered(found, at: at(51))])
         #expect(done.sessions["s1"]?.state == .doneUnseen)
-        let asking = run([ev(.waitingForReply(message: "?", onlyIfActive: false), 2), .discovered(found, at: at(51))])
+        let asking = run([ev(.waitingForReply(message: "?"), 2), .discovered(found, at: at(51))])
         #expect(asking.sessions["s1"]?.state == .waitingForReply)
     }
 

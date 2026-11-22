@@ -142,8 +142,10 @@ public struct AgentEvent: Equatable, Sendable {
         case permissionDenied
         /// The agent's own "needs your permission" notification.
         case permissionNotice(message: String?)
-        /// The agent waits for the user's reply. `onlyIfActive`: ignore when the user already saw the session.
-        case waitingForReply(message: String?, onlyIfActive: Bool)
+        /// The agent asked the user something (a question dialog) and waits for the answer.
+        case waitingForReply(message: String?)
+        /// The agent has been idle at its prompt for a while (Claude Code's `idle_prompt`, 60 s after Stop).
+        case turnIdle(message: String?)
         /// The user answered a question dialog; the agent continues.
         case resumed
         case stopped(lastMessage: String?)

@@ -117,8 +117,14 @@ private func applyAgent(_ e: AgentEvent, to state: inout SessionsState) {
         enter(.needsApproval)
         if let message { session.message = message }
 
-    case .waitingForReply(let message, let onlyIfActive):
-        if onlyIfActive, session.state == .idle || session.state == .needsApproval { break }
+    case .turnIdle:
+        // A finished session stays in Done. Only a working session moves: its Stop was missed.
+        if session.state == .working {
+            enter(.doneUnseen)
+            session.activity = nil
+        }
+
+    case .waitingForReply(let message):
         enter(.waitingForReply)
         if let message { session.message = message }
 

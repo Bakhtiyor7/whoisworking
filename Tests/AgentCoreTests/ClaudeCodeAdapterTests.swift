@@ -75,9 +75,9 @@ struct ClaudeCodeAdapterTests {
     @Test func notifications() throws {
         #expect(try kind("Notification-permission_prompt") == .permissionNotice(message: "Claude needs your permission to use Bash"))
         #expect(try kind("Notification-idle_prompt")
-            == .waitingForReply(message: "Claude is waiting for your input", onlyIfActive: true))
+            == .turnIdle(message: "Claude is waiting for your input"))
         #expect(try kind("Notification-elicitation_dialog")
-            == .waitingForReply(message: "Claude has a question for you", onlyIfActive: false))
+            == .waitingForReply(message: "Claude has a question for you"))
         #expect(try kind("Notification-elicitation_response") == .resumed)
         #expect(try kind("Notification-auth_success") == nil)
     }
@@ -118,7 +118,7 @@ struct ClaudeCodeRealPayloadTests {
         #expect(try kind("PermissionRequest") == .permissionRequested(tool))
         #expect(try kind("Notification-permission_prompt") == .permissionNotice(message: "Claude needs your permission"))
         #expect(try kind("Notification-idle_prompt")
-            == .waitingForReply(message: "Claude is waiting for your input", onlyIfActive: true))
+            == .turnIdle(message: "Claude is waiting for your input"))
         #expect(try kind("Stop") == .stopped(lastMessage: "ready"))
     }
 
