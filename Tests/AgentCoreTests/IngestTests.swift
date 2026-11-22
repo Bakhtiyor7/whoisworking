@@ -107,6 +107,18 @@ struct EventSocketTests {
         #expect(throws: EventSocketServer.Failure.alreadyRunning) { try second.start() }
     }
 
+    /// The handler must run while the hook is still connected, so the hook's parent processes still exist.
+    @Test func theHandlerRunsBeforeTheConnectionCloses() async throws {
+        let dir = try shortTempDir()
+        let path = dir.appendingPathComponent("events.sock").path
+        let server = EventSocketServer(path: path) { _ in Thread.sleep(forTimeInterval: 0.3) }
+        try server.start()
+        defer { server.stop() }
+        let start = Date()
+        try send(Data("{}".utf8), to: path)  // returns when the server closes the connection
+        #expect(Date().timeIntervalSince(start) >= 0.29)
+    }
+
     @Test func stopRemovesTheSocket() throws {
         let dir = try shortTempDir()
         let path = dir.appendingPathComponent("events.sock").path
@@ -175,7 +187,9 @@ struct HookScriptTests {
         #expect(output.isEmpty)
         #expect(seconds < 1.0)
         let got = await inbox.wait(for: 1)
-        #expect(got.first.map { String(decoding: $0, as: UTF8.self) } == "perch1 claude-code\n" + payload)
+        // The header names the agent and the hook's parent pid (here: this test process, which ran the script).
+        #expect(got.first.map { String(decoding: $0, as: UTF8.self) } == "perch1 claude-code ppid=\(getpid())\n" + payload)
+        #expect(got.first.flatMap { HookMessage.parse($0)?.parentPid } == getpid())
         #expect(got.first.flatMap { HookMessage.parse($0)?.event(receivedAt: Date()) }?.kind == .stopped(lastMessage: nil))
     }
 }

@@ -116,8 +116,10 @@ public final class EventSocketServer: @unchecked Sendable {
             let handler = onMessage
             workers.async {
                 let data = Self.readAll(client)
-                close(client)
+                // Handle before closing: the hook (and its parent processes) waits until we close,
+                // so the handler can still walk its process chain.
                 if !data.isEmpty { handler(data) }
+                close(client)
             }
         }
     }
@@ -166,10 +168,11 @@ public enum HookScript {
     # Perch hook. Installed and removed by the Perch app; safe to delete.
     # Forwards the agent's hook JSON (stdin) to Perch's socket and exits 0.
     # Prints nothing, never makes a decision, and does nothing when Perch is not running.
+    # ppid lets Perch find the agent process (for cleanup and "Open session").
     SOCK="${PERCH_SOCKET:-$HOME/Library/Application Support/Perch/events.sock}"
     AGENT="${1:-claude-code}"
     if [ -S "$SOCK" ]; then
-      { printf 'perch1 %s\n' "$AGENT"; cat; } | /usr/bin/nc -U -w 1 "$SOCK" >/dev/null 2>&1
+      { printf 'perch1 %s ppid=%s\n' "$AGENT" "$PPID"; cat; } | /usr/bin/nc -U -w 1 "$SOCK" >/dev/null 2>&1
     else
       cat >/dev/null 2>&1
     fi
@@ -217,18 +220,28 @@ public struct ProcessProbe: Sendable {
     private let parentLookup: @Sendable (Int32) -> Int32?
     private let nameLookup: @Sendable (Int32) -> String?
     private let argumentsLookup: @Sendable (Int32) -> [String]?
+    private let allPidsLookup: @Sendable () -> [Int32]
+    private let cwdLookup: @Sendable (Int32) -> String?
 
     public init(
         startTime: @escaping @Sendable (Int32) -> Date?,
         parent: @escaping @Sendable (Int32) -> Int32? = { _ in nil },
         name: @escaping @Sendable (Int32) -> String? = { _ in nil },
-        arguments: @escaping @Sendable (Int32) -> [String]? = { _ in nil }
+        arguments: @escaping @Sendable (Int32) -> [String]? = { _ in nil },
+        allPids: @escaping @Sendable () -> [Int32] = { [] },
+        cwd: @escaping @Sendable (Int32) -> String? = { _ in nil }
     ) {
         self.startTime = startTime
         self.parentLookup = parent
         self.nameLookup = name
         self.argumentsLookup = arguments
+        self.allPidsLookup = allPids
+        self.cwdLookup = cwd
     }
+
+    public func allPids() -> [Int32] { allPidsLookup() }
+    public func cwd(of pid: Int32) -> String? { cwdLookup(pid) }
+    public func startTime(of pid: Int32) -> Date? { startTime(pid) }
 
     public func name(of pid: Int32) -> String? { nameLookup(pid) }
     public func arguments(of pid: Int32) -> [String]? { argumentsLookup(pid) }
@@ -258,7 +271,22 @@ public struct ProcessProbe: Sendable {
                 }
             }
         },
-        arguments: { pid in processArguments(pid) }
+        arguments: { pid in processArguments(pid) },
+        allPids: {
+            let count = proc_listallpids(nil, 0)
+            guard count > 0 else { return [] }
+            var pids = [Int32](repeating: 0, count: Int(count) + 64)
+            let n = pids.withUnsafeMutableBytes { proc_listallpids($0.baseAddress, Int32($0.count)) }
+            return n > 0 ? Array(pids.prefix(Int(n))).filter { $0 > 0 } : []
+        },
+        cwd: { pid in
+            var info = proc_vnodepathinfo()
+            let size = Int32(MemoryLayout<proc_vnodepathinfo>.size)
+            guard proc_pidinfo(pid, PROC_PIDVNODEPATHINFO, 0, &info, size) == size else { return nil }
+            return withUnsafeBytes(of: info.pvi_cdir.vip_path) { raw in
+                String(decoding: raw.prefix { $0 != 0 }, as: UTF8.self)
+            }
+        }
     )
 
     /// argv of a process via KERN_PROCARGS2 (only works for the current user's processes).

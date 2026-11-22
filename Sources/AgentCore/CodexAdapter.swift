@@ -100,6 +100,18 @@ public enum CodexProcesses {
         "-C", "--cd", "-i", "--image", "--add-dir", "--enable", "--disable", "--local-provider",
     ]
 
+    /// Interactive Codex CLIs that are running now. The reducer shows them as idle placeholders until
+    /// their first hook event, so sessions started before Perch are visible (state unknown until then).
+    public static func discoveryEvents(probe: ProcessProbe, now: Date) -> [StoreEvent] {
+        probe.allPids().sorted().compactMap { pid in
+            guard probe.name(of: pid) == processName,
+                  let args = probe.arguments(of: pid), isInteractive(arguments: args)
+            else { return nil }
+            let proc = DiscoveredProcess(agent: .codex, pid: pid, cwd: probe.cwd(of: pid), startedAt: probe.startTime(of: pid))
+            return .discoveredProcess(proc, at: now)
+        }
+    }
+
     /// True for `codex`, `codex "prompt"`, `codex resume …`: an interactive terminal session.
     public static func isInteractive(arguments: [String]) -> Bool {
         var i = 1

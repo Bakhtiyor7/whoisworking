@@ -187,6 +187,28 @@ struct CodexProcessTests {
         #expect(probe.ancestor(of: 50, named: "codex") == nil)
     }
 
+    @Test func runningInteractiveCodexProcessesBecomePlaceholderEvents() {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let names: [Int32: String] = [10: "codex", 11: "codex", 12: "zsh", 13: "codex"]
+        let args: [Int32: [String]] = [
+            10: ["codex", "-a", "untrusted"], 11: ["codex", "app-server", "--listen", "stdio://"], 13: ["codex", "resume"],
+        ]
+        let cwds: [Int32: String] = [10: "/Users/me/web", 13: "/Users/me/api"]
+        let probe = ProcessProbe(
+            startTime: { _ in now }, name: { names[$0] }, arguments: { args[$0] },
+            allPids: { [10, 11, 12, 13] }, cwd: { cwds[$0] })
+        let events = CodexProcesses.discoveryEvents(probe: probe, now: now)
+        #expect(events == [
+            .discoveredProcess(DiscoveredProcess(agent: .codex, pid: 10, cwd: "/Users/me/web", startedAt: now), at: now),
+            .discoveredProcess(DiscoveredProcess(agent: .codex, pid: 13, cwd: "/Users/me/api", startedAt: now), at: now),
+        ])
+    }
+
+    @Test func theRealProbeListsProcessesAndFindsThisOnesFolder() {
+        #expect(ProcessProbe.system.allPids().contains(getpid()))
+        #expect(ProcessProbe.system.cwd(of: getpid()) == FileManager.default.currentDirectoryPath)
+    }
+
     @Test func theRealProbeKnowsThisProcessName() {
         let name = ProcessProbe.system.name(of: getpid())
         #expect(name != nil && !(name ?? "").isEmpty)
