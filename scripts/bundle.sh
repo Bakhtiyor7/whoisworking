@@ -11,6 +11,7 @@ rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN" "$APP/Contents/MacOS/WhoIsWorking"
 cp Resources/Info.plist "$APP/Contents/Info.plist"
+cp Resources/WhoIsWorking.icns "$APP/Contents/Resources/"
 cp Sources/WhoIsWorking/AgentIcons/LobeIcons-LICENSE.txt "$APP/Contents/Resources/"
 plutil -lint "$APP/Contents/Info.plist" >/dev/null
 # Ad-hoc signature: no Apple Developer account needed; enough to run locally.

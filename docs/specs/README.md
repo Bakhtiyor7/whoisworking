@@ -19,6 +19,7 @@ What WhoIsWorking does, written as numbered requirements. Tests prove them; `scr
 | [12 OpenCode adapter](12-opencode-adapter.md) | OPC | implemented |
 | [13 Distribution](13-distribution.md) | DST | draft |
 | [14 Antigravity adapter](14-antigravity-adapter.md) | ANT | draft |
+| [15 Click to session](15-click-to-session.md) | NAV | draft |
 
 ## Not in v1
 

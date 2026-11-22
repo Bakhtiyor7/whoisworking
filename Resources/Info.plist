@@ -8,6 +8,8 @@
 	<string>Who's Working</string>
 	<key>CFBundleExecutable</key>
 	<string>WhoIsWorking</string>
+	<key>CFBundleIconFile</key>
+	<string>WhoIsWorking.icns</string>
 	<key>CFBundleIdentifier</key>
 	<string>io.github.bakhtiyor7.WhoIsWorking</string>
 	<key>CFBundleInfoDictionaryVersion</key>
