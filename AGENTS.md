@@ -1,0 +1,97 @@
+# AGENTS.md
+
+Guidance for coding agents (Codex, Claude Code and others) working in this repository. `CLAUDE.md` imports this file, so edit this one.
+
+## What this is
+
+Perch is a macOS notch app that shows the status of Claude Code and Codex sessions on this Mac. v1 is status only: it never approves or denies anything, and the hook script never makes a decision. `README.md` is the user-facing description of behaviour (install steps, Codex coverage and gaps); update it when behaviour changes. `docs/plan.md` holds the research and the settled design (sizes, hover timings, colours).
+
+## Commands
+
+Swift Package (tools 6.0, macOS 15+), no third-party dependencies, no linter or formatter config.
+
+```bash
+swift test                                                         # all tests (~1 s after build)
+swift test --filter ReducerTests                                   # one suite, by struct name
+swift test --filter ReducerTests/permissionRequestMeansNeedsApproval   # one test
+swift build                                                        # debug build of both targets
+scripts/bundle.sh                                                  # release build -> build/Perch.app (ad-hoc signed)
+scripts/bundle.sh debug                                            # same, debug configuration
+open build/Perch.app
+```
+
+`--filter` matches on the Swift type and function names, not the `@Suite("…")` display names. It is a substring match, so `ReducerTests` also runs `CodexReducerTests`.
+
+The same binary is a CLI for the hook installer. Use `--settings <path>` to work on a copy instead of the real `~/.claude/settings.json` or `~/.codex/hooks.json`:
+
+```bash
+build/Perch.app/Contents/MacOS/Perch hooks status|preview|install|uninstall [--agent claude-code|codex] [--settings <path>]
+```
+
+Only one Perch can run at a time: a second copy finds the socket live and reports "Another copy of Perch is already running."
+
+### Checking the app without looking at the screen
+
+The `Perch` target has no tests. Verify UI and end-to-end changes with these environment variables (set them on the binary inside the bundle):
+
+| Variable | Effect |
+|---|---|
+| `PERCH_DEBUG_STATE=/path/state.txt` | Rewrites a readable snapshot of all sessions on every state change |
+| `PERCH_SNAPSHOT=/dir` | Renders the collapsed and expanded panel to PNGs |
+| `PERCH_FORCE=expanded` | Keeps the panel open |
+| `PERCH_NO_NOTCH=1` | Uses the no-notch pill layout |
+| `PERCH_OPEN_SETTINGS=1` | Opens Settings at launch |
+| `PERCH_LOG_EVENTS=1` | Saves every raw hook payload to `~/Library/Application Support/Perch/event-log/` |
+| `PERCH_CLAUDE_SESSIONS=/dir` | Reads Claude session files from another folder (an empty one shows the empty state) |
+| `PERCH_SOCKET=/path` | Read by the hook script only: sends events to another socket |
+
+## Architecture
+
+Two targets. `AgentCore` has no UI and holds all logic; it is the only tested target. `Perch` is the AppKit/SwiftUI shell and should stay thin: new behaviour goes into `AgentCore` behind a pure function or an injectable dependency, then gets wired in `SessionStore`.
+
+### Event flow
+
+```
+agent hook -> perch-hook (sh + nc) -> events.sock -> HookMessage.parse -> adapter -> AgentEvent ┐
+~/.claude/sessions/*.json -> ClaudeSessionScanner -> discoveryEvents() ------------------------┤
+process table -> CodexProcesses.discoveryEvents() (placeholders) ------------------------------┼-> StoreEvent -> reduce() -> SessionsState -> NotchSummary -> views
+Codex rollout tail -> CodexRollout.endOfQuietTurn() --------------------------------------------┤
+3 s timer / directory watcher / wake -> pruneOrphans ------------------------------------------┘
+```
+
+- **Wire format** (`HookMessage`, in `ClaudeCodeAdapter.swift`): one message per socket connection, a header line `perch1 <agent> ppid=<pid>` followed by the agent's raw hook JSON. A bare JSON object with no header is treated as Claude Code. The socket handler runs before the connection is closed, on purpose: the hook process is still alive then, so its parent chain can be walked.
+- **Adapters** (`ClaudeCodeAdapter`, `CodexAdapter`) map agent-specific hook JSON to the shared `AgentEvent.Kind`. Unknown events return nil and are dropped. Adding an agent means a new adapter, a `HookTarget`, and a case in `HookMessage.event`.
+- **Reducer** (`reduce` in `Reducer.swift`) is the single place session state changes: a pure `(SessionsState, StoreEvent) -> SessionsState`. `SessionStore` (app target) only collects inputs and calls it. The rules it enforces, each covered by tests:
+  - Events older than a session's newest applied event are ignored.
+  - Ended session ids are remembered so late events cannot recreate them; only `sessionStarted` clears that.
+  - Subagent start/stop and subagent tool events never create a top-level session and never change its state, only the activity line. A permission request raised inside a subagent still moves the session to `needsApproval`.
+  - While a session is in `needsApproval`, only the finish of the same tool (name and detail) resolves it.
+  - Hook events win over the session file once `hasHookEvents` is true. The file then only fills gaps the hooks leave, and only when its status is newer than the state by `fileStatusMargin`: `idle` moves `needsApproval`/`working` to `idle` (a declined permission prompt and an Esc interrupt fire no hook), and `busy` moves `needsApproval` back to `working`.
+- **Six states** (`SessionState`): `needsApproval`, `waitingForReply` and `error` are the "needs you" states that make the wings appear. `doneUnseen` becomes `idle` when the user sees it in the expanded panel (`.viewed`).
+
+### Session lifetime and process ownership
+
+Sessions are removed when their owning process dies (`processExited`), on `SessionEnd`, or after 15 minutes of silence with no known pid.
+
+- Claude Code: the pid comes from `~/.claude/sessions/<pid>.json`. `ProcessProbe.isAlive` compares start times to reject reused pids.
+- Codex has no session files. The hook's `ppid` is walked up to the nearest process named `codex` (often the shared `codex app-server` daemon, which outlives the terminal). Interactive Codex CLIs found in the process table before any hook event become placeholder sessions with id `process:<pid>`; a real session with the same pid, or the same agent and folder, replaces the placeholder.
+- Codex 0.163 fires no hook when a turn fails, so a Codex session that has been `working` and silent for 10 s gets the tail of its rollout file read (`CodexRollout`). The format is documented by Codex as unstable: unknown shapes must be ignored, not treated as errors.
+
+`ProcessProbe` is a struct of closures; tests build one with fake lookups, the app uses `ProcessProbe.system`.
+
+### Hook installer
+
+`HookInstaller` edits files it does not own (`~/.claude/settings.json`, `~/.codex/hooks.json`), which other tools also write hooks into. Its guarantees are the contract, and `HookInstallerTests` / `CodexHookInstallerTests` pin them:
+
+- Other tools' entries are never changed or reordered. This is why the installer uses `OrderedJSON.swift` (`JSONValue`, keeps key order and number spelling, writes like `JSON.stringify(v, null, 2)`) instead of `JSONSerialization`.
+- A timestamped backup is written beside the file before every change.
+- Install is idempotent; uninstall removes exactly the entries whose command contains `/Perch/perch-hook` and drops event keys it leaves empty.
+- Invalid JSON or an unexpected shape means refuse and change nothing.
+
+The hook script lives in `HookScript.contents` (`Ingest.swift`) and is written to `~/Library/Application Support/Perch/perch-hook`. It must use only `/bin/sh` and `/usr/bin/nc`, print nothing and always exit 0, so it can never block or slow an agent, also when Perch is not running. The app rewrites the installed copy at launch when it differs from `contents`.
+
+## Tests
+
+Swift Testing (`import Testing`, `@Suite`, `@Test`, `#expect`), not XCTest. Reducer tests build event lists with small helpers and fold them through `reduce` from fixed dates; nothing reads the clock.
+
+Fixtures are plain files under `Tests/Fixtures`, located through `#filePath` (`fixturesDir` in `ClaudeCodeAdapterTests.swift`), so there is no resource bundle. `Tests/Fixtures/README.md` records which fixtures were captured from real sessions and which were constructed from docs; keep it accurate when adding any. To capture real payloads, run Perch with `PERCH_LOG_EVENTS=1` and anonymize the files from the event log.
