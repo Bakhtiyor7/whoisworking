@@ -94,7 +94,7 @@ final class SessionStore: ObservableObject {
             if logEvents { EventLog.write(data, at: received) }
             guard let message = HookMessage.parse(data), var event = message.event(receivedAt: received) else { return }
             if event.agent == .codex, let parent = message.parentPid {
-                event.pid = probe.ancestor(of: parent, named: CodexProcesses.processName)
+                event.pid = CodexProcesses.owningProcess(ofHookParent: parent, probe: probe)
             }
             Task { @MainActor in self?.receive(event) }
         }

@@ -104,6 +104,22 @@ public enum CodexProcesses {
         "-C", "--cd", "-i", "--image", "--add-dir", "--enable", "--disable", "--local-provider",
     ]
 
+    /// The Codex process a hook belongs to: the topmost `codex` above it that has a terminal
+    /// (the CLI, which may run hooks in a child `codex app-server`), else the nearest `codex`
+    /// (the app-server inside ChatGPT.app, which has no terminal).
+    public static func owningProcess(ofHookParent pid: Int32, probe: ProcessProbe) -> Int32? {
+        guard let nearest = probe.ancestor(of: pid, named: processName) else { return nil }
+        var owner = probe.hasTerminal(nearest) ? nearest : nil
+        var current = probe.parent(of: nearest)
+        var steps = 0
+        while let p = current, p > 1, steps < 32 {
+            if probe.name(of: p) == processName, probe.hasTerminal(p) { owner = p }
+            current = probe.parent(of: p)
+            steps += 1
+        }
+        return owner ?? nearest
+    }
+
     /// Interactive Codex CLIs that are running now. The reducer shows them as idle placeholders until
     /// their first hook event, so sessions started before Perch are visible (state unknown until then).
     public static func discoveryEvents(probe: ProcessProbe, now: Date) -> [StoreEvent] {
