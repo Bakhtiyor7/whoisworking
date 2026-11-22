@@ -4,7 +4,7 @@ Guidance for coding agents (Codex, Claude Code and others) working in this repos
 
 ## What this is
 
-Perch is a macOS notch app that shows the status of Claude Code and Codex sessions on this Mac. v1 is status only: it never approves or denies anything, and the hook script never makes a decision. `README.md` is the user-facing description of behaviour (install steps, Codex coverage and gaps); update it when behaviour changes. `docs/plan.md` holds the research and the settled design (sizes, hover timings, colours).
+Perch is a macOS notch app that shows the status of Claude Code and Codex sessions on this Mac. v1 is status only: it never approves or denies anything, and the hook script never makes a decision. `README.md` is the user-facing description of behaviour (install steps, Codex coverage and gaps); update it when behaviour changes. `docs/plan.md` holds the research and the settled design (sizes, hover timings, colours). `docs/specs/` holds the requirements; see Specs below.
 
 ## Commands
 
@@ -15,6 +15,7 @@ swift test                                                         # all tests (
 swift test --filter ReducerTests                                   # one suite, by struct name
 swift test --filter ReducerTests/permissionRequestMeansNeedsApproval   # one test
 swift build                                                        # debug build of both targets
+scripts/check-specs.sh                                             # specs and tests name each other
 scripts/bundle.sh                                                  # release build -> build/Perch.app (ad-hoc signed)
 scripts/bundle.sh debug                                            # same, debug configuration
 open build/Perch.app
@@ -95,3 +96,45 @@ The hook script lives in `HookScript.contents` (`Ingest.swift`) and is written t
 Swift Testing (`import Testing`, `@Suite`, `@Test`, `#expect`), not XCTest. Reducer tests build event lists with small helpers and fold them through `reduce` from fixed dates; nothing reads the clock.
 
 Fixtures are plain files under `Tests/Fixtures`, located through `#filePath` (`fixturesDir` in `ClaudeCodeAdapterTests.swift`), so there is no resource bundle. `Tests/Fixtures/README.md` records which fixtures were captured from real sessions and which were constructed from docs; keep it accurate when adding any. To capture real payloads, run Perch with `PERCH_LOG_EVENTS=1` and anonymize the files from the event log.
+
+## Specs
+
+`docs/specs/` states what Perch does as numbered requirements (`RED-03`), each naming the tests that prove it. `docs/specs/README.md` has the index and the format. Specs 01–08 describe what is built; 10–13 are drafts for the next work (design for Settings, empty state and pill; Cursor; OpenCode; distribution).
+
+The order of work is spec, then failing test, then code:
+
+1. Add or edit the requirement in the spec. For a draft spec, settle its open questions with the user first.
+2. Write the failing test and name it on the requirement's `Tests:` line (`Type/function`).
+3. Write the code, then run `swift test` and `scripts/check-specs.sh`.
+
+`scripts/check-specs.sh` fails when an id repeats, a `Tests:` line names a missing test, an implemented requirement has no `Tests:` or `Verified by:` line, or a test is named by no spec. The hook installer and hook script requirements (`06`, `05`) are contracts: a change that would weaken one stops and goes to the user.
+
+## Design
+
+Visual and interaction work follows the `perch-design` skill: Mobbin for references, a Claude Design canvas for two or three directions the user picks from, then the Apple HIG and Liquid Glass skills to review the chosen one before building. Rules that hold for every screen:
+
+- The panel body is pure black with the notch's corner curve. Glass is only for controls inside the expanded panel.
+- One colour per state, always with an icon or shape: amber needs you, green done, red error, neutral working.
+- The package supports macOS 15, so Liquid Glass APIs sit behind `#available(macOS 26, *)` with a plain fallback.
+
+Mobbin, Liquid Glass (`liquid-glass`) and Apple HIG (`apple-hig-designer`) come from the user's plugins and personal skills, not from this repo. If one is missing in a session, say so and carry on; never invent a reference or a link.
+
+To check the UI, run the debug binary directly (`.build/debug/Perch` with the `PERCH_*` variables); the `perch-verify-ui` skill has the steps. Do not run `scripts/bundle.sh` just to check something: it replaces `build/Perch.app`, which may be the copy that is running.
+
+## Agent setup
+
+| What | Where | Read by |
+|---|---|---|
+| Instructions | `AGENTS.md` (`CLAUDE.md` imports it) | Claude Code, Codex, Cursor, OpenCode |
+| Skills: `perch-spec`, `perch-verify-ui`, `perch-design`, `perch-fixtures` | `.agents/skills/` (`.claude/skills` is a symlink to it) | all four |
+| Subagents: `spec-reviewer`, `design-reviewer` | `.claude/agents/` | Claude Code |
+| Allowed commands, plugins, hooks | `.claude/settings.json` | Claude Code |
+| Allowed commands | `.codex/rules/perch.rules` (trusted projects only), `.cursor/cli.json`, `opencode.json` | Codex, cursor-agent, OpenCode |
+| CI | `.github/workflows/ci.yml` | GitHub Actions |
+
+Claude Code hooks, in `scripts/agent/`:
+
+- `check-swift.sh` (Stop): when sources, tests or specs changed since the last passing run, it runs `swift build`, `swift test` and `scripts/check-specs.sh`, and sends failures back to the agent.
+- `guard-hooks-cli.sh` (PreToolUse, Bash): blocks `Perch hooks install|uninstall` without `--settings`, so the user's real hook files are never edited from an agent session.
+
+Other agents have no such hooks here: run the same three commands before reporting work as done, and always pass `--settings <copy>` to the hooks CLI.

@@ -19,6 +19,12 @@ swift test
 scripts/bundle.sh
 ```
 
+```bash
+scripts/check-specs.sh
+```
+
+`check-specs.sh` checks that the specs in `docs/specs/` and the tests name each other.
+
 `bundle.sh` builds the release binary and assembles `build/Perch.app` (agent app with no Dock icon via `LSUIElement`, ad-hoc signed, not notarized). Use `scripts/bundle.sh debug` for a debug build.
 
 ## Run
@@ -117,5 +123,7 @@ Tested live with Codex CLI 0.163.0 and 0.171.0 (needs approval, approve, done; a
 
 ## Project docs
 
+- `docs/specs/`: what Perch does as numbered requirements, each linked to its tests, plus draft specs for the next work
 - `docs/plan.md`: research, plan and settled design
 - `docs/spike/main.swift`: the throwaway spike the window behaviour came from
+- `AGENTS.md`: guidance for coding agents, including the project skills, hooks and allowlists

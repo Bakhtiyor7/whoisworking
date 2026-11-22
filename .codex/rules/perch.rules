@@ -1,0 +1,19 @@
+# Commands Codex may run in this repo without asking. Loaded only when the project is trusted.
+# Check a command against this file:
+#   codex execpolicy check --rules .codex/rules/perch.rules -- swift test
+prefix_rule(
+    pattern = ["swift", "build"],
+    decision = "allow",
+)
+prefix_rule(
+    pattern = ["swift", "test"],
+    decision = "allow",
+)
+prefix_rule(
+    pattern = ["scripts/check-specs.sh"],
+    decision = "allow",
+)
+prefix_rule(
+    pattern = ["scripts/bundle.sh"],
+    decision = "allow",
+)

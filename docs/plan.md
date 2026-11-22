@@ -2,6 +2,8 @@
 
 Draft, 2026-11-22. Items marked **(my call)** are my proposals, not things you agreed to.
 
+This is the research and design record. The requirements now live in [`specs/`](specs/README.md).
+
 ## 1. What it is
 
 A small macOS app that lives in the MacBook notch. It is invisible while nothing needs you, opens on hover, and shows every AI agent session on the machine: which are working, which are waiting on you, which finished. Downloaded from a web page, not the App Store.

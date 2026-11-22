@@ -1,0 +1,43 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(swift build:*)",
+      "Bash(swift test:*)",
+      "Bash(scripts/bundle.sh:*)",
+      "Bash(scripts/check-specs.sh)",
+      "Bash(scripts/agent/check-swift.sh)",
+      "Bash(build/Perch.app/Contents/MacOS/Perch hooks status:*)",
+      "Bash(build/Perch.app/Contents/MacOS/Perch hooks preview:*)"
+    ]
+  },
+  "enabledPlugins": {
+    "superpowers@claude-plugins-official": true,
+    "frontend-design@claude-plugins-official": true,
+    "mobbin@anthropic-plugin-directory": true
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PROJECT_DIR}/scripts/agent/guard-hooks-cli.sh\"",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PROJECT_DIR}/scripts/agent/check-swift.sh\"",
+            "timeout": 300
+          }
+        ]
+      }
+    ]
+  }
+}

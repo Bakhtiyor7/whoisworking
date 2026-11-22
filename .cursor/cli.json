@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "permissions": {
+    "allow": [
+      "Shell(swift)",
+      "Shell(scripts/check-specs.sh)",
+      "Shell(scripts/bundle.sh)"
+    ],
+    "deny": []
+  }
+}
