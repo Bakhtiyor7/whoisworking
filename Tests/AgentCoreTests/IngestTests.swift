@@ -48,7 +48,7 @@ private func runHook(_ script: URL, stdin: String, socket: String) throws -> (In
     let p = Process()
     p.executableURL = script
     p.arguments = ["claude-code"]
-    p.environment = ["PERCH_SOCKET": socket, "PATH": "/usr/bin:/bin", "HOME": NSHomeDirectory()]
+    p.environment = ["WHOISWORKING_SOCKET": socket, "PATH": "/usr/bin:/bin", "HOME": NSHomeDirectory()]
     let input = Pipe(), output = Pipe()
     p.standardInput = input
     p.standardOutput = output
@@ -69,7 +69,7 @@ private func mode(_ path: String) throws -> Int {
 @Suite("Event socket", .serialized)
 struct EventSocketTests {
     @Test func receivesOneMessagePerConnectionWithOwnerOnlyPermissions() async throws {
-        let dir = try shortTempDir().appendingPathComponent("Perch")
+        let dir = try shortTempDir().appendingPathComponent("WhoIsWorking")
         let path = dir.appendingPathComponent("events.sock").path
         let inbox = Inbox()
         let server = EventSocketServer(path: path) { inbox.add($0) }
@@ -132,7 +132,7 @@ struct EventSocketTests {
 @Suite("Hook script", .serialized)
 struct HookScriptTests {
     private func installScript() throws -> URL {
-        let url = try shortTempDir().appendingPathComponent("perch-hook")
+        let url = try shortTempDir().appendingPathComponent("whoisworking-hook")
         try HookScript.write(to: url)
         return url
     }
@@ -188,7 +188,7 @@ struct HookScriptTests {
         #expect(seconds < 1.0)
         let got = await inbox.wait(for: 1)
         // The header names the agent and the hook's parent pid (here: this test process, which ran the script).
-        #expect(got.first.map { String(decoding: $0, as: UTF8.self) } == "perch1 claude-code ppid=\(getpid())\n" + payload)
+        #expect(got.first.map { String(decoding: $0, as: UTF8.self) } == "whoisworking1 claude-code ppid=\(getpid())\n" + payload)
         #expect(got.first.flatMap { HookMessage.parse($0)?.parentPid } == getpid())
         #expect(got.first.flatMap { HookMessage.parse($0)?.event(receivedAt: Date()) }?.kind == .stopped(lastMessage: nil))
     }

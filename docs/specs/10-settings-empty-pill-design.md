@@ -2,7 +2,7 @@
 
 Status: draft
 Depends on: `08-notch-ui.md`
-Workflow: the `perch-design` skill
+Workflow: the `whoisworking-design` skill
 
 ## Purpose
 
@@ -24,7 +24,7 @@ Settings is a standard macOS settings window: one section per agent with hook st
 
 ### DSN-04 Empty state
 
-The empty state says in one line what Perch shows and has one action. With hooks installed there is no action.
+The empty state says in one line what WhoIsWorking shows and has one action. With hooks installed there is no action.
 
 ### DSN-05 No-notch pill
 

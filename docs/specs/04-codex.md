@@ -43,7 +43,7 @@ The owning process is the nearest process named `codex` above the hook's parent:
 
 Tests: `CodexProcessTests/theHookParentChainLeadsToTheCodexProcess`, `CodexProcessTests/hooksRunByTheAppServerDaemonBelongToTheDaemon`, `CodexProcessTests/hooksInTheChatGPTAppBelongToItsAppServer`, `CodexProcessTests/hooksRunDirectlyByTheCliBelongToIt`
 
-### CDX-06 Codex CLIs started before Perch
+### CDX-06 Codex CLIs started before WhoIsWorking
 
 A running process named `codex` that has a terminal and whose arguments are an interactive invocation (not `exec`, `app-server`, `mcp` and similar subcommands) becomes a placeholder event with its pid, folder and start time (see RED-16).
 

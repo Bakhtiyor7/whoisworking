@@ -28,10 +28,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         store.start()
         notch.show()
-        if ProcessInfo.processInfo.environment["PERCH_OPEN_SETTINGS"] == "1" { settings.show() }
+        if ProcessInfo.processInfo.environment["WHOISWORKING_OPEN_SETTINGS"] == "1" { settings.show() }
     }
 
-    /// Opening Perch.app again (Finder, Spotlight) shows Settings, since there is no Dock icon or menu.
+    /// Opening WhoIsWorking.app again (Finder, Spotlight) shows Settings, since there is no Dock icon or menu.
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         settings.show()
         return true

@@ -11,11 +11,11 @@ struct HooksCommandTests {
     let script: URL
 
     init() throws {
-        dir = FileManager.default.temporaryDirectory.appendingPathComponent("perch-cli-\(UUID().uuidString)")
+        dir = FileManager.default.temporaryDirectory.appendingPathComponent("whoisworking-cli-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         defaultSettings = dir.appendingPathComponent("default-settings.json")
         defaultCodexHooks = dir.appendingPathComponent("codex-hooks.json")
-        script = dir.appendingPathComponent("Perch/perch-hook")
+        script = dir.appendingPathComponent("WhoIsWorking/whoisworking-hook")
         try Data("{}\n".utf8).write(to: defaultSettings)
     }
 
@@ -54,7 +54,7 @@ struct HooksCommandTests {
         let before = try Data(contentsOf: defaultSettings)
         let (code, out) = run(["preview"])
         #expect(code == 0)
-        #expect(out.contains("perch-hook"))
+        #expect(out.contains("whoisworking-hook"))
         #expect(try Data(contentsOf: defaultSettings) == before)
         #expect(!FileManager.default.fileExists(atPath: script.path))
     }
@@ -62,7 +62,7 @@ struct HooksCommandTests {
     @Test func codexAgentWritesTheCodexHooksFile() throws {
         #expect(run(["install", "--agent", "codex"]).0 == 0)
         let codexText = try String(contentsOf: defaultCodexHooks, encoding: .utf8)
-        #expect(codexText.contains(#"perch-hook\" codex"#))
+        #expect(codexText.contains(#"whoisworking-hook\" codex"#))
         #expect(try String(contentsOf: defaultSettings, encoding: .utf8) == "{}\n")
         #expect(run(["status", "--agent", "codex"]).1.hasSuffix(": installed\n"))
     }

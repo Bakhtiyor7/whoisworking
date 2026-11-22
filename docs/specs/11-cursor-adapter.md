@@ -5,27 +5,31 @@ Depends on: `02-reducer.md`, `06-hook-installer.md`
 
 ## Purpose
 
-Show Cursor agent sessions (the Cursor app and `cursor-agent`) in Perch, marked CU.
+Show local Cursor agent sessions in WhoIsWorking using the [Cursor badge](../../Resources/AgentIcons/cursor.png). Verify the macOS app first and assess the CLI with separate captures.
 
-**Unverified:** the event and field names below come from `docs/plan.md` §2, which notes they were read from truncated doc pages. Before any code, read https://cursor.com/docs/agent/hooks, capture real payloads with `PERCH_LOG_EVENTS=1`, and correct this spec.
+The [Cursor hook reference](https://cursor.com/docs/hooks) documents the configuration, fields, and lifecycle events below. Captures from the installed app and CLI are pending.
 
 ## Requirements
 
 ### CUR-01 Adapter
 
-A `CursorAdapter` maps Cursor hook JSON to the shared `AgentEvent.Kind`. Sessions are identified by `conversation_id`; the folder is the first of `workspace_roots`. Unknown events and broken input are dropped.
+A `CursorAdapter` maps agent hooks to the shared `AgentEvent.Kind`. Use `conversation_id` as the session ID, with the documented `session_id` as a fallback on `sessionStart`. Use the first workspace root as the folder when available. Drop unknown events, invalid payloads, and events outside a conversation.
+
+Map `sessionStart` to a new session and `sessionEnd` to removal. Use a verified prompt or activity event for working. For `stop`, map `completed`, `aborted`, and `error` to completed, interrupted, and failed turns respectively. Check repeated turns in a single conversation and reserve session removal for an actual end.
 
 ### CUR-02 Hook target
 
-A `HookTarget` for `~/.cursor/hooks.json` with the agent id `cursor`. All guarantees of `06-hook-installer.md` apply unchanged. If Cursor's file shape differs from the `{"hooks": {"<Event>": [...]}}` shape the installer knows, the installer is extended behind tests first; it never falls back to rewriting the file.
+Add a `HookTarget` for the user-level `~/.cursor/hooks.json` with the agent ID `cursor`. Cursor documents a root `version` and a `hooks` object containing ordered arrays of command definitions. Apply the guarantees in `06-hook-installer.md` and check both a new file and a file with unrelated hooks.
+
+Only register events that accept the existing silent, exit-zero forwarding contract. Confirm behavior with a missing or stale WhoIsWorking socket as well as a listening one.
 
 ### CUR-03 Routing
 
 `HookMessage.event` routes header agent `cursor` to the adapter.
 
-### CUR-04 Inferred "needs you"
+### CUR-04 Approval status
 
-Cursor has no permission event. A `beforeShellExecution` or `beforeMCPExecution` with no follow-up event within a set time means `needsApproval`; the follow-up for the same command resolves it. The delay is chosen from captured payloads and stated here before coding.
+Initial coverage reports lifecycle and confirmed errors. A missing follow-up event cannot distinguish a pending approval from a slow, failed, or canceled tool. The documented permission hooks can block execution on invalid responses. Leave them outside the status-only integration until an observation path for an actual pending approval is verified and approved.
 
 ### CUR-05 Lifetime
 
@@ -41,6 +45,6 @@ Captured, anonymized payloads live in `Tests/Fixtures/cursor/`, recorded in `Tes
 
 ## Open questions
 
-1. Is the inferred approval reliable enough to show wings, or should Cursor sessions only show working and done?
-2. Does `cursor-agent` (CLI) fire the same hooks as the app?
-3. Which process owns a Cursor session, and can it be found from the hook's parent chain?
+1. Which prompt and lifecycle events accept a silent, exit-zero handler in the app? Does `sessionEnd` fire when the conversation closes?
+2. Does the installed CLI fire the same hooks as the app, with the same conversation IDs and event order?
+3. Which process owns a session, and does the hook parent chain identify it reliably?

@@ -1,4 +1,5 @@
 import AgentCore
+import AppKit
 import SwiftUI
 
 enum Palette {
@@ -101,12 +102,34 @@ struct SectionLabel: View {
 struct AgentMark: View {
     let agent: AgentKind
 
+    private static let claudeCodeIcon = NSImage(data: Data(PackageResources.claudecode_png))
+    private static let codexIcon = NSImage(data: Data(PackageResources.codex_png))
+
+    private var icon: NSImage? {
+        switch agent {
+        case .claudeCode: Self.claudeCodeIcon
+        case .codex: Self.codexIcon
+        }
+    }
+
     var body: some View {
-        Text(agent.shortCode)
-            .font(.system(size: 10, weight: .bold))
-            .frame(width: 24, height: 24)
-            .background(Palette.mark, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
-            .accessibilityHidden(true)
+        Group {
+            if let icon {
+                Image(nsImage: icon)
+                    .renderingMode(.original)
+                    .resizable()
+                    .interpolation(.high)
+                    .scaledToFit()
+                    .frame(width: 16, height: 16)
+            } else {
+                Text(agent.shortCode)
+                    .font(.system(size: 10, weight: .bold))
+            }
+        }
+        .foregroundStyle(.white)
+        .frame(width: 24, height: 24)
+        .background(Palette.mark, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+        .accessibilityHidden(true)
     }
 }
 
@@ -321,8 +344,8 @@ struct ExpandedPanel: View {
                 }
                 .buttonStyle(.plain)
                 .foregroundStyle(Palette.dim)
-                .help("Perch settings")
-                .accessibilityLabel("Perch settings")
+                .help("Who's Working settings")
+                .accessibilityLabel("Who's Working settings")
             }
         }
     }

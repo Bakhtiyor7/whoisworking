@@ -5,20 +5,20 @@
       "request": "launch",
       "args": [],
       "cwd": "${workspaceFolder:perch}",
-      "name": "Debug Perch",
-      "target": "Perch",
+      "name": "Debug WhoIsWorking",
+      "target": "WhoIsWorking",
       "configuration": "debug",
-      "preLaunchTask": "swift: Build Debug Perch"
+      "preLaunchTask": "swift: Build Debug WhoIsWorking"
     },
     {
       "type": "swift",
       "request": "launch",
       "args": [],
       "cwd": "${workspaceFolder:perch}",
-      "name": "Release Perch",
-      "target": "Perch",
+      "name": "Release WhoIsWorking",
+      "target": "WhoIsWorking",
       "configuration": "release",
-      "preLaunchTask": "swift: Build Release Perch"
+      "preLaunchTask": "swift: Build Release WhoIsWorking"
     }
   ]
 }

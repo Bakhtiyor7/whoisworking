@@ -4,16 +4,16 @@
 <dict>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
+	<key>CFBundleDisplayName</key>
+	<string>Who's Working</string>
 	<key>CFBundleExecutable</key>
-	<string>Perch</string>
+	<string>WhoIsWorking</string>
 	<key>CFBundleIdentifier</key>
-	<string>app.perch.Perch</string>
+	<string>io.github.bakhtiyor7.WhoIsWorking</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>Perch</string>
-	<key>CFBundleDisplayName</key>
-	<string>Perch</string>
+	<string>WhoIsWorking</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>

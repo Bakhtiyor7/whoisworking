@@ -6,8 +6,8 @@
       "Bash(scripts/bundle.sh:*)",
       "Bash(scripts/check-specs.sh)",
       "Bash(scripts/agent/check-swift.sh)",
-      "Bash(build/Perch.app/Contents/MacOS/Perch hooks status:*)",
-      "Bash(build/Perch.app/Contents/MacOS/Perch hooks preview:*)"
+      "Bash(build/WhoIsWorking.app/Contents/MacOS/WhoIsWorking hooks status:*)",
+      "Bash(build/WhoIsWorking.app/Contents/MacOS/WhoIsWorking hooks preview:*)"
     ]
   },
   "enabledPlugins": {

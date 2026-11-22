@@ -29,7 +29,7 @@ A small macOS app that lives in the MacBook notch. It is invisible while nothing
 | Cursor | `~/.cursor/hooks.json` | No dedicated event. Infer from `beforeShellExecution` / `beforeMCPExecution` with no follow-up | `conversation_id`, `workspace_roots` |
 | OpenCode | JS plugin in `~/.config/opencode/plugins/` | Permission `evaluate` hook (names unconfirmed) | `sessionID`; folder only partly |
 
-Claude Code and Codex are solid. Cursor and OpenCode will have a weaker "needs you" signal. The Codex and OpenCode event names came from truncated doc pages and need re-checking before coding.
+The current plans for the next local integrations are in the [Cursor](specs/11-cursor-adapter.md), [OpenCode](specs/12-opencode-adapter.md), and [Antigravity](specs/14-antigravity-adapter.md) drafts. The table above records the initial research.
 
 ### Existing apps
 
@@ -104,7 +104,7 @@ Hover / click         ┌──────[ notch ]──────┐
 
 - The panel body is pure black with the notch's corner curve, so it reads as the notch growing. Glass belongs only on controls inside the expanded panel, not on the body.
 - One colour per state, always paired with a shape or icon so it works without colour: amber needs you, green done, neutral working, red error.
-- SF Pro, SF Symbols, agent identified by a small monochrome mark.
+- SF Pro and SF Symbols. Agent badges use the product's colors.
 - Spring animation for expand; respect Reduce Motion.
 
 **References from Mobbin** (iOS Dynamic Island, the closest pattern)
@@ -138,7 +138,7 @@ Decided 2026-11-22 (you asked me to choose):
 
 1. **v1 is status only.** Approve/deny from the notch comes in v2, once the status is trustworthy.
 2. **Just for you first, on GitHub Releases, unsigned.** No Developer Program yet. Phase 5 splits in two: 5a is an unsigned DMG on GitHub with Sparkle updates; 5b (signing and notarization, $99/yr) happens only when you want strangers to install it without the "Open Anyway" step.
-3. **Working name: Perch.** Placeholder, easy to change before 5a.
+3. **Working name: Perch.** Placeholder, easy to change before 5a. Renamed on 2026-11-22 to **WhoIsWorking** (shown as "Who's Working"): "Perch" is taken by several Mac apps, two of them agent monitors. The rest of this document keeps the old name as written at the time.
 
 ## Sources
 

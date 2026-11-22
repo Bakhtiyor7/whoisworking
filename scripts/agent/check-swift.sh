@@ -22,7 +22,7 @@ if OUT="$(swift build 2>&1 && swift test 2>&1 && scripts/check-specs.sh 2>&1)"; 
   exit 0
 fi
 {
-  echo "Perch checks failed (swift build, swift test, scripts/check-specs.sh). Fix this before finishing:"
+  echo "WhoIsWorking checks failed (swift build, swift test, scripts/check-specs.sh). Fix this before finishing:"
   # Failure lines first (failed tests, compiler errors, spec problems), then the end of the output.
   printf '%s\n' "$OUT" | grep -E '✘|error:|docs/specs/|no spec names|check-specs:' | head -n 30
   printf '%s\n' "$OUT" | tail -n 8

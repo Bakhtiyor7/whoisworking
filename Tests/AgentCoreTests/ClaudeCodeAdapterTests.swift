@@ -148,7 +148,7 @@ struct ClaudeCodeRealPayloadTests {
 @Suite("Wire message")
 struct HookMessageTests {
     @Test func headerNamesTheAgent() {
-        let msg = HookMessage.parse(Data("perch1 claude-code\n{\"a\":1}".utf8))
+        let msg = HookMessage.parse(Data("whoisworking1 claude-code\n{\"a\":1}".utf8))
         #expect(msg?.agent == "claude-code")
         #expect(msg?.payload == Data(#"{"a":1}"#.utf8))
     }
@@ -164,14 +164,14 @@ struct HookMessageTests {
     }
 
     @Test func routesClaudeCodeMessagesToTheAdapter() throws {
-        var data = Data("perch1 claude-code\n".utf8)
+        var data = Data("whoisworking1 claude-code\n".utf8)
         data.append(try fixture("claude-code/Stop.json"))
         let event = HookMessage.parse(data).flatMap { $0.event(receivedAt: now) }
         #expect(event?.sessionId == sid)
     }
 
     @Test func unknownAgentsAreIgnored() {
-        let event = HookMessage.parse(Data("perch1 someday-agent\n{\"session_id\":\"x\"}".utf8))?.event(receivedAt: now)
+        let event = HookMessage.parse(Data("whoisworking1 someday-agent\n{\"session_id\":\"x\"}".utf8))?.event(receivedAt: now)
         #expect(event == nil)
     }
 }

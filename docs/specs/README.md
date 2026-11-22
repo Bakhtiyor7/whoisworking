@@ -1,6 +1,6 @@
-# Perch specs
+# WhoIsWorking specs
 
-What Perch does, written as numbered requirements. Tests prove them; `scripts/check-specs.sh` keeps the two in step. Research and the reasons behind the design are in [`../plan.md`](../plan.md).
+What WhoIsWorking does, written as numbered requirements. Tests prove them; `scripts/check-specs.sh` keeps the two in step. Research and the reasons behind the design are in [`../plan.md`](../plan.md).
 
 ## Index
 
@@ -18,10 +18,11 @@ What Perch does, written as numbered requirements. Tests prove them; `scripts/ch
 | [11 Cursor adapter](11-cursor-adapter.md) | CUR | draft |
 | [12 OpenCode adapter](12-opencode-adapter.md) | OPC | draft |
 | [13 Distribution](13-distribution.md) | DST | draft |
+| [14 Antigravity adapter](14-antigravity-adapter.md) | ANT | draft |
 
 ## Not in v1
 
-- Approving or denying from the notch. Perch is status only, and the hook script never makes a decision.
+- Approving or denying from the notch. WhoIsWorking is status only, and the hook script never makes a decision.
 - Usage limits and remote machines.
 
 ## Format
@@ -45,7 +46,7 @@ Tests: `ReducerTests/approvedToolFinishingMeansWorkingAgain`
 
 - An id is a prefix and a number. Ids are never reused or renumbered; a removed requirement keeps its number retired.
 - `Tests:` names Swift test functions as `Type/function`, the same form `swift test --filter` takes.
-- Requirements on the untested `Perch` target use `Verified by:` with the snapshot or manual check that proves them.
+- Requirements on the untested `WhoIsWorking` target use `Verified by:` with the snapshot or manual check that proves them.
 - Draft specs need no `Tests:` lines and end with open questions. A draft becomes `implemented` when every requirement has its line.
 
 ## Working with specs
@@ -64,4 +65,4 @@ scripts/check-specs.sh
 
 `check-specs.sh` fails when an id is used twice, a `Tests:` line names a test that does not exist, an implemented requirement has no proof line, or a test is not named by any spec.
 
-The `perch-spec` skill has the same steps for agents.
+The `whoisworking-spec` skill has the same steps for agents.

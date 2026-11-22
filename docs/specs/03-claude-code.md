@@ -69,7 +69,7 @@ Tests: `ClaudeCodeRealPayloadTests/mapsEveryCapturedEvent`, `ClaudeCodeRealPaylo
 
 ### CCA-10 Wire format
 
-One message per socket connection: a header line `perch1 <agent> ppid=<pid>` followed by the agent's raw hook JSON. A bare JSON object with no header is treated as Claude Code. Empty input and garbage are rejected. Messages go to the adapter of the agent named in the header; unknown agents are ignored.
+One message per socket connection: a header line `whoisworking1 <agent> ppid=<pid>` followed by the agent's raw hook JSON. A bare JSON object with no header is treated as Claude Code. Empty input and garbage are rejected. Messages go to the adapter of the agent named in the header; unknown agents are ignored.
 
 Tests: `HookMessageTests/headerNamesTheAgent`, `HookMessageTests/bareJSONIsTreatedAsClaudeCode`, `HookMessageTests/emptyOrGarbageIsRejected`, `HookMessageTests/routesClaudeCodeMessagesToTheAdapter`, `HookMessageTests/unknownAgentsAreIgnored`
 

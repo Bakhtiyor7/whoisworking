@@ -215,7 +215,7 @@ public struct DiscoveredSession: Equatable, Sendable {
     }
 }
 
-/// A running agent process found without a session id (e.g. a Codex CLI started before Perch).
+/// A running agent process found without a session id (e.g. a Codex CLI started before WhoIsWorking).
 public struct DiscoveredProcess: Equatable, Sendable {
     public var agent: AgentKind
     public var pid: Int32

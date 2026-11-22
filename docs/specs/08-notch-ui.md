@@ -1,11 +1,11 @@
 # 08 Notch UI
 
 Status: implemented
-Code: `Sources/Perch/` (`NotchPanel.swift`, `NotchViews.swift`, `SessionStore.swift`, `AppFocuser.swift`, `Settings.swift`, `main.swift`)
+Code: `Sources/WhoIsWorking/` (`NotchPanel.swift`, `NotchViews.swift`, `SessionStore.swift`, `AppFocuser.swift`, `Settings.swift`, `main.swift`)
 
 ## Purpose
 
-The visible app. The `Perch` target has no unit tests and stays thin: it lays out what `AgentCore` computes. These requirements are checked by rendering snapshots (`PERCH_SNAPSHOT`) and reading the debug state file (`PERCH_DEBUG_STATE`); the `perch-verify-ui` skill has the steps. Design source: `docs/plan.md` §5 and §5a.
+The visible app. The `WhoIsWorking` target has no unit tests and stays thin: it lays out what `AgentCore` computes. These requirements are checked by rendering snapshots (`WHOISWORKING_SNAPSHOT`) and reading the debug state file (`WHOISWORKING_DEBUG_STATE`); the `whoisworking-verify-ui` skill has the steps. Design source: `docs/plan.md` §5 and §5a.
 
 ## Requirements
 
@@ -23,21 +23,23 @@ Verified by: snapshot (collapsed, one session in needs approval)
 
 ### UI-03 Expanded panel
 
-The expanded panel is 560 pt wide with sections Needs you, Working, Done. A Needs you card shows the session name, the request title, the full command or text and an "Open session" button. Other sessions are 44 pt rows with a state icon, agent mark (CC or CX), name, one-line detail and elapsed time.
+The expanded panel is 560 pt wide with sections Needs you, Working, Done. A Needs you card shows the session name, the request title, the full command or text and an "Open session" button. Other sessions are 44 pt rows with a state icon, name, one-line detail and elapsed time.
 
-Verified by: snapshot (`PERCH_FORCE=expanded`)
+When a session appears as a row or a Needs you card, its 24 pt badge shows the matching Claude Code or Codex icon in its original colors. The icons are bundled for offline use. VoiceOver identifies each agent by its full name.
+
+Verified by: color snapshot of Claude Code and Codex in both session rows and Needs you cards
 
 ### UI-04 Panel body
 
 The body is pure black with the notch's corner curve, so it reads as the notch growing. Glass is allowed only on controls inside the expanded panel, never on the body.
 
-Verified by: snapshot (`PERCH_FORCE=expanded`)
+Verified by: snapshot (`WHOISWORKING_FORCE=expanded`)
 
 ### UI-05 State colours and shapes
 
 Amber for needs you, green for done, red for error, neutral for working. Every colour is paired with an icon or shape, so the state reads without colour.
 
-Verified by: snapshot (`PERCH_FORCE=expanded`, one session per state)
+Verified by: snapshot (`WHOISWORKING_FORCE=expanded`, one session per state)
 
 ### UI-06 Hover
 
@@ -55,17 +57,17 @@ Verified by: manual check on the notch
 
 On a screen without a notch, nothing is drawn until something needs the user; then a pill appears at the top centre with the same content as the wings.
 
-Verified by: snapshot (`PERCH_NO_NOTCH=1`)
+Verified by: snapshot (`WHOISWORKING_NO_NOTCH=1`)
 
 ### UI-09 Empty state
 
 With no sessions, the expanded panel says "No agent sessions" and, when hooks are not installed, shows an "Open Settings" button.
 
-Verified by: snapshot (`PERCH_FORCE=expanded`, `PERCH_CLAUDE_SESSIONS` pointing at an empty folder)
+Verified by: snapshot (`WHOISWORKING_FORCE=expanded`, `WHOISWORKING_CLAUDE_SESSIONS` pointing at an empty folder)
 
 ### UI-10 Open session
 
-"Open session" and a row click bring the owning app to the front by walking the session process's parent chain to the first regular app. When there is none (tmux, screen, daemon-hosted Codex), Perch beeps. It cannot select a specific tab or conversation.
+"Open session" and a row click bring the owning app to the front by walking the session process's parent chain to the first regular app. When there is none (tmux, screen, daemon-hosted Codex), WhoIsWorking beeps. It cannot select a specific tab or conversation.
 
 Verified by: manual check with a terminal session
 
@@ -77,15 +79,15 @@ Verified by: manual check with Reduce Motion on
 
 ### UI-12 Settings
 
-Opening Perch.app while it runs shows Settings. Settings has one section per agent with the hook status (installed, partial, not installed), install and uninstall buttons, and Quit.
+Opening WhoIsWorking.app while it runs shows Settings. Settings has one section per agent with the hook status (installed, partial, not installed), install and uninstall buttons, and Quit.
 
-Verified by: snapshot of the window (`PERCH_OPEN_SETTINGS=1`)
+Verified by: snapshot of the window (`WHOISWORKING_OPEN_SETTINGS=1`)
 
 ### UI-13 Refresh
 
 Session files are rescanned when their folder changes, every 3 seconds, and after wake from sleep.
 
-Verified by: `PERCH_DEBUG_STATE` file after starting and ending a session
+Verified by: `WHOISWORKING_DEBUG_STATE` file after starting and ending a session
 
 ### UI-14 Hook script kept current
 
@@ -95,6 +97,6 @@ Verified by: manual check (edit the installed script, relaunch, compare)
 
 ### UI-15 App shell
 
-Perch is an agent app with no Dock icon. A second copy reports that another copy is already running.
+WhoIsWorking is an agent app with no Dock icon. Its user-visible name (bundle display name, Settings title, version line, Quit button, messages) is "Who's Working". A second copy reports that another copy is already running.
 
 Verified by: manual check

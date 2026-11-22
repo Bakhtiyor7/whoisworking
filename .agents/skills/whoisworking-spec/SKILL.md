@@ -1,6 +1,6 @@
 ---
-name: perch-spec
-description: Write or change a Perch spec in docs/specs before touching code. Use when adding behaviour, fixing a bug, starting one of the draft specs (Cursor, OpenCode, distribution, design), or when scripts/check-specs.sh fails.
+name: whoisworking-spec
+description: Write or change a WhoIsWorking spec in docs/specs before touching code. Use when adding behaviour, fixing a bug, starting one of the draft specs (Cursor, OpenCode, distribution, design), or when scripts/check-specs.sh fails.
 ---
 
 # Spec first, then test, then code
@@ -34,12 +34,12 @@ A bug means a requirement is missing or a test is. Add or correct the requiremen
 
 ## UI requirements
 
-The `Perch` target has no tests. Use `Verified by:` and name the snapshot or manual check. Run it with the `perch-verify-ui` skill.
+The `WhoIsWorking` target has no tests. Use `Verified by:` and name the snapshot or manual check. Run it with the `whoisworking-verify-ui` skill.
 
 ## Starting a draft spec
 
 1. Put the spec's open questions to the user and write the answers into the spec.
-2. Check every item marked unverified against the tool's official docs and real captured payloads (`perch-fixtures` skill). Correct the spec.
+2. Check every item marked unverified against the tool's official docs and real captured payloads (`whoisworking-fixtures` skill). Correct the spec.
 3. Work one requirement at a time with the loop above.
 4. When every requirement has a `Tests:` or `Verified by:` line, set `Status: implemented`, update the index in `docs/specs/README.md`, and update `README.md` if users see a difference.
 

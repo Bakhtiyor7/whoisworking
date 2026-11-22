@@ -3,19 +3,19 @@ import Foundation
 
 // MARK: - Paths
 
-public enum PerchPaths {
+public enum AppPaths {
     public static var supportDirectory: URL {
         FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent("Library/Application Support/Perch", isDirectory: true)
+            .appendingPathComponent("Library/Application Support/WhoIsWorking", isDirectory: true)
     }
 
     public static var socket: URL { supportDirectory.appendingPathComponent("events.sock") }
-    public static var hookScript: URL { supportDirectory.appendingPathComponent("perch-hook") }
+    public static var hookScript: URL { supportDirectory.appendingPathComponent("whoisworking-hook") }
     public static var eventLog: URL { supportDirectory.appendingPathComponent("event-log", isDirectory: true) }
 
     /// The command written into agent settings. `$HOME` keeps it free of the user name.
     public static func hookCommand(agent: String) -> String {
-        #""$HOME/Library/Application Support/Perch/perch-hook" "# + agent
+        #""$HOME/Library/Application Support/WhoIsWorking/whoisworking-hook" "# + agent
     }
 
     public static var claudeSettings: URL {
@@ -24,7 +24,7 @@ public enum PerchPaths {
 
     public static var claudeSessions: URL {
         // Debug override, used to show the empty state.
-        if let dir = ProcessInfo.processInfo.environment["PERCH_CLAUDE_SESSIONS"] { return URL(fileURLWithPath: dir) }
+        if let dir = ProcessInfo.processInfo.environment["WHOISWORKING_CLAUDE_SESSIONS"] { return URL(fileURLWithPath: dir) }
         return FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".claude/sessions", isDirectory: true)
     }
 }
@@ -41,8 +41,8 @@ public final class EventSocketServer: @unchecked Sendable {
 
     private let path: String
     private let onMessage: @Sendable (Data) -> Void
-    private let queue = DispatchQueue(label: "perch.socket.accept")
-    private let workers = DispatchQueue(label: "perch.socket.read", attributes: .concurrent)
+    private let queue = DispatchQueue(label: "whoisworking.socket.accept")
+    private let workers = DispatchQueue(label: "whoisworking.socket.read", attributes: .concurrent)
     private var listenFD: Int32 = -1
     private var source: DispatchSourceRead?
 
@@ -165,14 +165,14 @@ public final class EventSocketServer: @unchecked Sendable {
 public enum HookScript {
     public static let contents = #"""
     #!/bin/sh
-    # Perch hook. Installed and removed by the Perch app; safe to delete.
-    # Forwards the agent's hook JSON (stdin) to Perch's socket and exits 0.
-    # Prints nothing, never makes a decision, and does nothing when Perch is not running.
-    # ppid lets Perch find the agent process (for cleanup and "Open session").
-    SOCK="${PERCH_SOCKET:-$HOME/Library/Application Support/Perch/events.sock}"
+    # WhoIsWorking hook. Installed and removed by the WhoIsWorking app; safe to delete.
+    # Forwards the agent's hook JSON (stdin) to WhoIsWorking's socket and exits 0.
+    # Prints nothing, never makes a decision, and does nothing when WhoIsWorking is not running.
+    # ppid lets WhoIsWorking find the agent process (for cleanup and "Open session").
+    SOCK="${WHOISWORKING_SOCKET:-$HOME/Library/Application Support/WhoIsWorking/events.sock}"
     AGENT="${1:-claude-code}"
     if [ -S "$SOCK" ]; then
-      { printf 'perch1 %s ppid=%s\n' "$AGENT" "$PPID"; cat; } | /usr/bin/nc -U -w 1 "$SOCK" >/dev/null 2>&1
+      { printf 'whoisworking1 %s ppid=%s\n' "$AGENT" "$PPID"; cat; } | /usr/bin/nc -U -w 1 "$SOCK" >/dev/null 2>&1
     else
       cat >/dev/null 2>&1
     fi
@@ -186,11 +186,11 @@ public enum HookScript {
         try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: url.path)
     }
 
-    /// Deletes the script unless some agent's default hook file still has Perch's hooks.
+    /// Deletes the script unless some agent's default hook file still has WhoIsWorking's hooks.
     public static func removeIfUnused(at url: URL, defaultSettings: (HookTarget) -> URL = { $0.defaultSettingsURL }) {
         let stillUsed = HookTarget.all.contains { t in
             let installer = HookInstaller(
-                target: t, settingsURL: defaultSettings(t), hookCommand: PerchPaths.hookCommand(agent: t.id))
+                target: t, settingsURL: defaultSettings(t), hookCommand: AppPaths.hookCommand(agent: t.id))
             return ((try? installer.status()) ?? .notInstalled) != .notInstalled
         }
         if !stillUsed { try? FileManager.default.removeItem(at: url) }

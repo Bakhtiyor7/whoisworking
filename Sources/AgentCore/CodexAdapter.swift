@@ -112,7 +112,7 @@ public enum CodexProcesses {
     }
 
     /// Interactive Codex CLIs that are running now. The reducer shows them as idle placeholders until
-    /// their first hook event, so sessions started before Perch are visible (state unknown until then).
+    /// their first hook event, so sessions started before WhoIsWorking are visible (state unknown until then).
     public static func discoveryEvents(probe: ProcessProbe, now: Date) -> [StoreEvent] {
         probe.allPids().sorted().compactMap { pid in
             guard probe.name(of: pid) == processName, probe.hasTerminal(pid),

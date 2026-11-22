@@ -17,7 +17,7 @@ final class HookManager: ObservableObject {
         self.target = target
         installer = HookInstaller(
             target: target, settingsURL: target.defaultSettingsURL,
-            hookCommand: PerchPaths.hookCommand(agent: target.id))
+            hookCommand: AppPaths.hookCommand(agent: target.id))
     }
 
     var displayPath: String { "~/" + target.defaultSettingsPath }
@@ -30,15 +30,15 @@ final class HookManager: ObservableObject {
             status = nil
             problem = "\(error)"
         }
-        // Keep the installed script current (it lives in Perch's own folder, not in the agent's).
-        if status == .installed || status == .partial, !HookScript.isCurrent(at: PerchPaths.hookScript) {
-            try? HookScript.write(to: PerchPaths.hookScript)
+        // Keep the installed script current (it lives in the app's own folder, not in the agent's).
+        if status == .installed || status == .partial, !HookScript.isCurrent(at: AppPaths.hookScript) {
+            try? HookScript.write(to: AppPaths.hookScript)
         }
     }
 
     func install() {
         do {
-            try HookScript.write(to: PerchPaths.hookScript)
+            try HookScript.write(to: AppPaths.hookScript)
             let result = try installer.install()
             lastResult = result.backupURL.map { "Installed. Backup: \($0.lastPathComponent)" }
                 ?? (result.changed ? "Installed." : "Already installed; nothing changed.")
@@ -54,7 +54,7 @@ final class HookManager: ObservableObject {
         do {
             let result = try installer.uninstall()
             // The script is shared by all agents; it goes only when no agent's hooks still use it.
-            HookScript.removeIfUnused(at: PerchPaths.hookScript)
+            HookScript.removeIfUnused(at: AppPaths.hookScript)
             lastResult = result.backupURL.map { "Removed. Backup: \($0.lastPathComponent)" }
                 ?? (result.changed ? "Removed." : "Not installed; nothing changed.")
         } catch {
@@ -77,12 +77,12 @@ final class LoginItem: ObservableObject {
     func refresh() {
         guard available else {
             enabled = false
-            note = "Available when Perch runs as Perch.app (scripts/bundle.sh)."
+            note = "Available when Who's Working runs as WhoIsWorking.app (scripts/bundle.sh)."
             return
         }
         let status = SMAppService.mainApp.status
         enabled = status == .enabled
-        note = status == .requiresApproval ? "Allow Perch in System Settings › General › Login Items." : nil
+        note = status == .requiresApproval ? "Allow Who's Working in System Settings › General › Login Items." : nil
     }
 
     func update(_ on: Bool) {
@@ -112,7 +112,7 @@ struct HooksSection: View {
                     Text(statusText)
                 }
             }
-            Text("Perch adds one hook to \(hooks.target.events.count) events in \(hooks.displayPath). Other tools' hooks stay as they are. A backup is saved next to the file before every change.")
+            Text("Who's Working adds one hook to \(hooks.target.events.count) events in \(hooks.displayPath). Other tools' hooks stay as they are. A backup is saved next to the file before every change.")
                 .font(.callout).foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
             if let note {
@@ -134,13 +134,13 @@ struct HooksSection: View {
             Button("Install") { hooks.install() }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("Perch will back up \(hooks.displayPath), then add its hook to: \(hooks.target.events.joined(separator: ", ")).")
+            Text("Who's Working will back up \(hooks.displayPath), then add its hook to: \(hooks.target.events.joined(separator: ", ")).")
         }
         .alert("Uninstall \(title) hooks?", isPresented: $confirmUninstall) {
             Button("Uninstall", role: .destructive) { hooks.uninstall() }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("Perch will back up \(hooks.displayPath), then remove only its own hook entries.")
+            Text("Who's Working will back up \(hooks.displayPath), then remove only its own hook entries.")
         }
     }
 
@@ -183,7 +183,7 @@ struct SettingsView: View {
                 hooks: claude)
             HooksSection(
                 title: "Codex",
-                note: "Codex runs new hooks only after you trust them. In the Codex CLI type /hooks and trust the Perch entries; in the Codex app use Review hooks (or Settings › Hooks). Until then Codex skips them.",
+                note: "Codex runs new hooks only after you trust them. In the Codex CLI type /hooks and trust the Who's Working entries; in the Codex app use Review hooks (or Settings › Hooks). Until then Codex skips them.",
                 hooks: codex)
             Section("General") {
                 Toggle("Open at login", isOn: Binding(get: { login.enabled }, set: { login.update($0) }))
@@ -194,10 +194,10 @@ struct SettingsView: View {
             }
             Section {
                 HStack {
-                    Text("Perch \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "dev")")
+                    Text("Who's Working \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "dev")")
                         .foregroundStyle(.secondary)
                     Spacer()
-                    Button("Quit Perch") { NSApp.terminate(nil) }
+                    Button("Quit Who's Working") { NSApp.terminate(nil) }
                 }
             }
         }
@@ -229,7 +229,7 @@ final class SettingsWindowController {
         if window == nil {
             let controller = NSHostingController(rootView: SettingsView(claude: claude, codex: codex, login: login))
             let window = NSWindow(contentViewController: controller)
-            window.title = "Perch Settings"
+            window.title = "Who's Working Settings"
             window.styleMask = [.titled, .closable]
             window.isReleasedWhenClosed = false
             window.center()

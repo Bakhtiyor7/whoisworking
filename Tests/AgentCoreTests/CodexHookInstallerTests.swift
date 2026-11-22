@@ -45,10 +45,10 @@ private let existingCodexHooks = #"""
 struct CodexHookInstallerTests {
     let dir: URL
     let file: URL
-    let command = PerchPaths.hookCommand(agent: "codex")
+    let command = AppPaths.hookCommand(agent: "codex")
 
     init() throws {
-        dir = FileManager.default.temporaryDirectory.appendingPathComponent("perch-codex-\(UUID().uuidString)")
+        dir = FileManager.default.temporaryDirectory.appendingPathComponent("whoisworking-codex-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         file = dir.appendingPathComponent("hooks.json")
         try Data(existingCodexHooks.utf8).write(to: file)
@@ -98,14 +98,14 @@ struct CodexHookInstallerTests {
     @Test func claudeAndCodexEntriesDoNotCountForEachOther() throws {
         // A Claude-only command in a Codex file is still "ours" by marker, but it is not the current Codex command.
         try installer.install()
-        let claudeView = HookInstaller(target: .claudeCode, settingsURL: file, hookCommand: PerchPaths.hookCommand(agent: "claude-code"))
+        let claudeView = HookInstaller(target: .claudeCode, settingsURL: file, hookCommand: AppPaths.hookCommand(agent: "claude-code"))
         #expect(try claudeView.status() == .partial)
     }
 
     /// Opt-in check against a real file without writing to it:
-    /// `PERCH_ROUNDTRIP_FILE=~/.codex/hooks.json swift test --filter roundTripOfARealFile`
+    /// `WHOISWORKING_ROUNDTRIP_FILE=~/.codex/hooks.json swift test --filter roundTripOfARealFile`
     @Test func codexHooksFileRoundTrips() throws {
-        guard let path = ProcessInfo.processInfo.environment["PERCH_ROUNDTRIP_CODEX"] else { return }
+        guard let path = ProcessInfo.processInfo.environment["WHOISWORKING_ROUNDTRIP_CODEX"] else { return }
         let text = try String(contentsOfFile: path, encoding: .utf8)
         #expect(try JSONValue.parse(text).formatted() + "\n" == text)
     }

@@ -29,7 +29,7 @@ Tests: `ReducerTests/sessionStartCreatesIdleSession`
 
 ### SES-03 Sessions already running are picked up
 
-Given Perch started after the agent, when any top-level event arrives for an unknown session id, then the session is created and the event applied.
+Given WhoIsWorking started after the agent, when any top-level event arrives for an unknown session id, then the session is created and the event applied.
 
 Tests: `ReducerTests/eventsForUnknownSessionsCreateThemSoMidRunLaunchesWork`
 

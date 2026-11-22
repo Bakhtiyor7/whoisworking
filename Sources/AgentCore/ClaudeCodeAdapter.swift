@@ -139,10 +139,10 @@ extension String {
     var capitalizedFirst: String { prefix(1).uppercased() + dropFirst() }
 }
 
-/// One message on the Perch socket: an optional `perch1 <agent>` header line, then the hook JSON.
+/// One message on the WhoIsWorking socket: an optional `whoisworking1 <agent>` header line, then the hook JSON.
 /// The header lets later agents (Codex, Cursor, OpenCode) share the same socket and hook script.
 public struct HookMessage: Equatable, Sendable {
-    public static let headerPrefix = "perch1 "
+    public static let headerPrefix = "whoisworking1 "
 
     public var agent: String
     public var payload: Data

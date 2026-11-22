@@ -53,7 +53,7 @@ final class NotchPanelController {
     private var outsideSince: Date?
     private var shownDoneIds: Set<String> = []
     private var cancellables: Set<AnyCancellable> = []
-    private let forcedOpen = ProcessInfo.processInfo.environment["PERCH_FORCE"] == "expanded"
+    private let forcedOpen = ProcessInfo.processInfo.environment["WHOISWORKING_FORCE"] == "expanded"
     private var holdOpen = false
 
     static let openDwell: TimeInterval = 0.15
@@ -87,7 +87,7 @@ final class NotchPanelController {
             MainActor.assumeIsolated { self?.tick() }
         }
         if forcedOpen { setExpanded(true) }
-        if let dir = ProcessInfo.processInfo.environment["PERCH_SNAPSHOT"] { scheduleSnapshots(to: dir) }
+        if let dir = ProcessInfo.processInfo.environment["WHOISWORKING_SNAPSHOT"] { scheduleSnapshots(to: dir) }
     }
 
     // MARK: Debug snapshots
@@ -105,7 +105,7 @@ final class NotchPanelController {
             holdOpen = false
             if !forcedOpen { setExpanded(false) }
             // Settings window, if open: AppKit-backed, so cacheDisplay works there.
-            if let window = NSApp.windows.first(where: { $0.title == "Perch Settings" && $0.isVisible }),
+            if let window = NSApp.windows.first(where: { $0.title == "Who's Working Settings" && $0.isVisible }),
                let view = window.contentView, let rep = view.bitmapImageRepForCachingDisplay(in: view.bounds)
             {
                 view.cacheDisplay(in: view.bounds, to: rep)
@@ -135,7 +135,7 @@ final class NotchPanelController {
     func layout() {
         guard let screen, let panel else { return }
         let top = screen.safeAreaInsets.top
-        let pretendNoNotch = ProcessInfo.processInfo.environment["PERCH_NO_NOTCH"] == "1"  // debug: pill layout
+        let pretendNoNotch = ProcessInfo.processInfo.environment["WHOISWORKING_NO_NOTCH"] == "1"  // debug: pill layout
         if top > 0, !pretendNoNotch, let left = screen.auxiliaryTopLeftArea, let right = screen.auxiliaryTopRightArea {
             model.hasNotch = true
             model.notchHeight = top

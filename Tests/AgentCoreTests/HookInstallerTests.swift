@@ -9,7 +9,7 @@ private final class TempSettings {
     var clock = Date(timeIntervalSince1970: 1_800_000_000)
 
     init(_ contents: String?) throws {
-        dir = FileManager.default.temporaryDirectory.appendingPathComponent("perch-tests-\(UUID().uuidString)")
+        dir = FileManager.default.temporaryDirectory.appendingPathComponent("whoisworking-tests-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         file = dir.appendingPathComponent("settings.json")
         if let contents { try Data(contents.utf8).write(to: file) }
@@ -26,11 +26,11 @@ private final class TempSettings {
 
     var backups: [URL] {
         ((try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil)) ?? [])
-            .filter { $0.lastPathComponent.hasPrefix("settings.json.perch-backup-") }
+            .filter { $0.lastPathComponent.hasPrefix("settings.json.whoisworking-backup-") }
             .sorted { $0.lastPathComponent < $1.lastPathComponent }
     }
 
-    static let command = #""$HOME/Library/Application Support/Perch/perch-hook" claude-code"#
+    static let command = #""$HOME/Library/Application Support/WhoIsWorking/whoisworking-hook" claude-code"#
 }
 
 /// Shaped like a real settings file: other tools' hooks with and without matchers, other keys, unicode.
@@ -123,7 +123,7 @@ struct HookInstallerTests {
         #expect(t.backups.count == 1)
         // Compare resolved paths: the temp dir is reachable as both /var/… and /private/var/….
         #expect(result.backupURL?.resolvingSymlinksInPath().path == t.backups.first?.resolvingSymlinksInPath().path)
-        #expect(t.backups.first?.lastPathComponent == "settings.json.perch-backup-\(Self.stamp(t.clock))")
+        #expect(t.backups.first?.lastPathComponent == "settings.json.whoisworking-backup-\(Self.stamp(t.clock))")
         #expect(try String(contentsOf: t.backups[0], encoding: .utf8) == existing)
     }
 
@@ -163,7 +163,7 @@ struct HookInstallerTests {
                   },
                   {
                     "type": "command",
-                    "command": "\"$HOME/Library/Application Support/Perch/perch-hook\" claude-code"
+                    "command": "\"$HOME/Library/Application Support/WhoIsWorking/whoisworking-hook\" claude-code"
                   }
                 ]
               }
@@ -223,7 +223,7 @@ struct HookInstallerTests {
                 "hooks": [
                   {
                     "type": "command",
-                    "command": "\"$HOME/Library/Application Support/Perch/perch-hook\" claude-code"
+                    "command": "\"$HOME/Library/Application Support/WhoIsWorking/whoisworking-hook\" claude-code"
                   }
                 ]
               }

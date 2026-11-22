@@ -1,17 +1,17 @@
 import Foundation
 
-/// `Perch hooks <status|preview [install|uninstall]|install|uninstall> [--agent claude-code|codex] [--settings <path>]`
+/// `WhoIsWorking hooks <status|preview [install|uninstall]|install|uninstall> [--agent claude-code|codex] [--settings <path>]`
 ///
 /// Command-line access to the same installer the Settings window uses. `preview` prints the file
 /// as it would be written and changes nothing. Default files: ~/.claude/settings.json, ~/.codex/hooks.json.
 public enum HooksCommand {
     static let usage =
-        "usage: Perch hooks <status|preview [install|uninstall]|install|uninstall> [--agent claude-code|codex] [--settings <path>]\n"
+        "usage: WhoIsWorking hooks <status|preview [install|uninstall]|install|uninstall> [--agent claude-code|codex] [--settings <path>]\n"
 
     public static func run(
         _ args: [String],
         defaultSettings: (HookTarget) -> URL = { $0.defaultSettingsURL },
-        hookScript: URL = PerchPaths.hookScript,
+        hookScript: URL = AppPaths.hookScript,
         output: (String) -> Void = { print($0, terminator: "") }
     ) -> Int32 {
         var rest = args
@@ -30,7 +30,7 @@ public enum HooksCommand {
             rest.removeSubrange(i ... i + 1)
         }
         func installer(_ t: HookTarget, _ url: URL) -> HookInstaller {
-            HookInstaller(target: t, settingsURL: url, hookCommand: PerchPaths.hookCommand(agent: t.id))
+            HookInstaller(target: t, settingsURL: url, hookCommand: AppPaths.hookCommand(agent: t.id))
         }
         let chosen = installer(target, settings)
         do {

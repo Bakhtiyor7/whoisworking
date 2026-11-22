@@ -60,9 +60,9 @@ struct OrderedJSONTests {
     }
 
     /// Opt-in check against a real file without writing to it:
-    /// `PERCH_ROUNDTRIP_FILE=~/.claude/settings.json swift test --filter roundTripOfARealFile`
+    /// `WHOISWORKING_ROUNDTRIP_FILE=~/.claude/settings.json swift test --filter roundTripOfARealFile`
     @Test func roundTripOfARealFile() throws {
-        guard let path = ProcessInfo.processInfo.environment["PERCH_ROUNDTRIP_FILE"] else { return }
+        guard let path = ProcessInfo.processInfo.environment["WHOISWORKING_ROUNDTRIP_FILE"] else { return }
         let text = try String(contentsOfFile: path, encoding: .utf8)
         let value = try JSONValue.parse(text)
         #expect(value.formatted() + "\n" == text)

@@ -63,11 +63,11 @@ public struct HookTarget: Equatable, Sendable {
 /// Earlier name, kept for the Claude Code call sites.
 public typealias ClaudeHookInstaller = HookInstaller
 
-/// Adds and removes Perch's hook handlers in an agent's hook file.
+/// Adds and removes WhoIsWorking's hook handlers in an agent's hook file.
 ///
 /// - Merges into existing `hooks` without changing or reordering other tools' entries.
 /// - Writes a timestamped backup beside the file before every change.
-/// - Recognises its own handlers by the command (`…/Perch/perch-hook …`), so uninstall removes exactly those.
+/// - Recognises its own handlers by the command (`…/WhoIsWorking/whoisworking-hook …`), so uninstall removes exactly those.
 /// - Is idempotent, and refuses to write when the file is not valid JSON or has an unexpected shape.
 public struct HookInstaller: Sendable {
     public enum Action: Sendable { case install, uninstall }
@@ -88,8 +88,8 @@ public struct HookInstaller: Sendable {
     /// Claude Code events (kept for existing callers).
     public static var events: [String] { HookTarget.claudeCode.events }
 
-    /// Any handler whose command contains this is Perch's.
-    public static let marker = "/Perch/perch-hook"
+    /// Any handler whose command contains this is WhoIsWorking's.
+    public static let marker = "/WhoIsWorking/whoisworking-hook"
 
     public let target: HookTarget
     public let settingsURL: URL
@@ -204,7 +204,7 @@ public struct HookInstaller: Sendable {
         if let hooksIndex, case .object(let existing) = members[hooksIndex].value { existingEvents = existing }
         let hadHooks = hooksIndex != nil
 
-        // 1. Remove every Perch handler, dropping groups and events that only held Perch's.
+        // 1. Remove every WhoIsWorking handler, dropping groups and events that only held WhoIsWorking's.
         var cleaned: [JSONValue.Member] = []
         for event in existingEvents {
             guard case .array(let groups) = event.value else { cleaned.append(event); continue }
@@ -226,7 +226,7 @@ public struct HookInstaller: Sendable {
             cleaned.append(JSONValue.Member(event.name, .array(keptGroups)))
         }
 
-        // 2. On install, append one Perch group to each of the target's events.
+        // 2. On install, append one WhoIsWorking group to each of the target's events.
         if action == .install {
             for event in target.events {
                 if let i = cleaned.firstIndex(where: { $0.name == event }), case .array(var groups) = cleaned[i].value {
@@ -272,7 +272,7 @@ public struct HookInstaller: Sendable {
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.timeZone = TimeZone.current
         formatter.dateFormat = "yyyyMMdd-HHmmss"
-        let base = settingsURL.path + ".perch-backup-" + formatter.string(from: now())
+        let base = settingsURL.path + ".whoisworking-backup-" + formatter.string(from: now())
         var path = base
         var n = 2
         while FileManager.default.fileExists(atPath: path) {

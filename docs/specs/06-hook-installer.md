@@ -5,19 +5,21 @@ Code: `Sources/AgentCore/HookInstaller.swift`, `Sources/AgentCore/OrderedJSON.sw
 
 ## Purpose
 
-Add and remove Perch's hooks in files Perch does not own (`~/.claude/settings.json`, `~/.codex/hooks.json`), which other tools also write hooks into. These requirements are a contract: a change that breaks one is a bug, whatever else it achieves.
+Add and remove WhoIsWorking's hooks in files WhoIsWorking does not own (`~/.claude/settings.json`, `~/.codex/hooks.json`), which other tools also write hooks into. These requirements are a contract: a change that breaks one is a bug, whatever else it achieves.
+
+The app was called Perch until 2026-11-22, and its entries used `/Perch/perch-hook`. The installer does not recognise those: remove them with the old Perch build before installing WhoIsWorking's hooks.
 
 ## Requirements
 
 ### INS-01 Install adds one entry per event
 
-Install appends one handler, recognisable by `/Perch/perch-hook` in its command, to each of the agent's events: 13 for Claude Code (timeout 5 s), 10 for Codex (timeout 3 s).
+Install appends one handler, recognisable by `/WhoIsWorking/whoisworking-hook` in its command, to each of the agent's events: 13 for Claude Code (timeout 5 s), 10 for Codex (timeout 3 s).
 
 Tests: `HookInstallerTests/installAddsOneTaggedHandlerPerEvent`, `CodexHookInstallerTests/codexTargetCoversTheCodexEvents`
 
 ### INS-02 Other tools' entries are untouched
 
-Install never changes or reorders other tools' entries or keys. Perch's entry goes after them.
+Install never changes or reorders other tools' entries or keys. WhoIsWorking's entry goes after them.
 
 Tests: `HookInstallerTests/installKeepsOtherToolsEntriesAndKeysInOrder`, `CodexHookInstallerTests/installAppendsAfterOtherToolsAndUninstallRestoresExactly`
 
@@ -33,9 +35,9 @@ Running install again changes nothing.
 
 Tests: `HookInstallerTests/installIsIdempotent`
 
-### INS-05 Uninstall removes exactly Perch's entries
+### INS-05 Uninstall removes exactly WhoIsWorking's entries
 
-Uninstall removes only handlers whose command contains `/Perch/perch-hook`, also inside groups shared with other tools, and drops event keys it leaves empty, so the file returns to its earlier content byte for byte. Uninstall when nothing is installed changes nothing.
+Uninstall removes only handlers whose command contains `/WhoIsWorking/whoisworking-hook`, also inside groups shared with other tools, and drops event keys it leaves empty, so the file returns to its earlier content byte for byte. Uninstall when nothing is installed changes nothing.
 
 Tests: `HookInstallerTests/uninstallRestoresThePriorContentExactly`, `HookInstallerTests/uninstallRemovesOnlyTaggedHandlersEvenInsideSharedGroups`, `HookInstallerTests/uninstallWhenNotInstalledChangesNothing`, `CodexHookInstallerTests/installAppendsAfterOtherToolsAndUninstallRestoresExactly`
 
@@ -47,7 +49,7 @@ Tests: `HookInstallerTests/refusesToWriteWhenTheFileIsNotValidJSON`, `HookInstal
 
 ### INS-07 Missing file
 
-Given no settings file, install creates it; uninstall then removes Perch's keys again.
+Given no settings file, install creates it; uninstall then removes WhoIsWorking's keys again.
 
 Tests: `HookInstallerTests/createsTheFileWhenMissingAndRemovesOurKeysOnUninstall`
 
@@ -65,7 +67,7 @@ Tests: `HookInstallerTests/previewShowsTheChangeWithoutWriting`, `HooksCommandTe
 
 ### INS-10 File permissions and symlinks
 
-The file keeps its permissions. When the settings path is a symlink, Perch writes through it and does not replace the link with a file.
+The file keeps its permissions. When the settings path is a symlink, WhoIsWorking writes through it and does not replace the link with a file.
 
 Tests: `HookInstallerTests/keepsFilePermissions`, `HookInstallerTests/writesThroughASymlinkInsteadOfReplacingIt`
 
@@ -83,7 +85,7 @@ Tests: `OrderedJSONTests/roundTripIsByteIdentical`, `OrderedJSONTests/keyOrderIs
 
 ### INS-13 Command line
 
-`Perch hooks status|preview|install|uninstall [--agent claude-code|codex] [--settings <path>]`:
+`WhoIsWorking hooks status|preview|install|uninstall [--agent claude-code|codex] [--settings <path>]`:
 
 - install writes the exact hook script;
 - `--agent codex` works on the Codex hooks file;

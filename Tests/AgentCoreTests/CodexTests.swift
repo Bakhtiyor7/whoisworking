@@ -90,20 +90,20 @@ struct CodexAdapterTests {
 @Suite("Wire header with parent pid")
 struct WireHeaderTests {
     @Test func headerCarriesTheHookParentPid() {
-        let msg = HookMessage.parse(Data("perch1 codex ppid=4242\n{}".utf8))
+        let msg = HookMessage.parse(Data("whoisworking1 codex ppid=4242\n{}".utf8))
         #expect(msg?.agent == "codex")
         #expect(msg?.parentPid == 4242)
         #expect(msg?.payload == Data("{}".utf8))
     }
 
     @Test func oldHeaderWithoutPidStillParses() {
-        let msg = HookMessage.parse(Data("perch1 claude-code\n{}".utf8))
+        let msg = HookMessage.parse(Data("whoisworking1 claude-code\n{}".utf8))
         #expect(msg?.agent == "claude-code")
         #expect(msg?.parentPid == nil)
     }
 
     @Test func codexMessagesRouteToTheCodexAdapter() throws {
-        var data = Data("perch1 codex ppid=1\n".utf8)
+        var data = Data("whoisworking1 codex ppid=1\n".utf8)
         data.append(try fixture("codex/Stop.json"))
         #expect(HookMessage.parse(data)?.event(receivedAt: now)?.agent == .codex)
     }

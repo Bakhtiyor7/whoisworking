@@ -17,12 +17,12 @@ final class SessionStore: ObservableObject {
     private var clockTimer: Timer?
     private var directoryWatcher: DispatchSourceFileSystemObject?
     private var watchedFD: Int32 = -1
-    private let scanner = ClaudeSessionScanner(directory: PerchPaths.claudeSessions)
+    private let scanner = ClaudeSessionScanner(directory: AppPaths.claudeSessions)
     private let probe = ProcessProbe.system
     private let logEvents: Bool
 
     init() {
-        logEvents = ProcessInfo.processInfo.environment["PERCH_LOG_EVENTS"] == "1"
+        logEvents = ProcessInfo.processInfo.environment["WHOISWORKING_LOG_EVENTS"] == "1"
             || UserDefaults.standard.bool(forKey: "logEvents")
     }
 
@@ -60,8 +60,8 @@ final class SessionStore: ObservableObject {
         if next != state { state = next }
     }
 
-    /// `PERCH_DEBUG_STATE=/path/file.txt` writes a readable snapshot on every change (for checks without screenshots).
-    private let debugStatePath = ProcessInfo.processInfo.environment["PERCH_DEBUG_STATE"]
+    /// `WHOISWORKING_DEBUG_STATE=/path/file.txt` writes a readable snapshot on every change (for checks without screenshots).
+    private let debugStatePath = ProcessInfo.processInfo.environment["WHOISWORKING_DEBUG_STATE"]
 
     private func dumpState() {
         guard let debugStatePath else { return }
@@ -88,7 +88,7 @@ final class SessionStore: ObservableObject {
     private func startSocket() {
         let logEvents = self.logEvents
         let probe = self.probe
-        let server = EventSocketServer(path: PerchPaths.socket.path) { [weak self] data in
+        let server = EventSocketServer(path: AppPaths.socket.path) { [weak self] data in
             // Runs on the socket thread while the hook is still connected, so its parent chain still exists.
             let received = Date()
             if logEvents { EventLog.write(data, at: received) }
@@ -103,7 +103,7 @@ final class SessionStore: ObservableObject {
             self.server = server
             socketError = nil
         } catch EventSocketServer.Failure.alreadyRunning {
-            socketError = "Another copy of Perch is already running."
+            socketError = "Another copy of Who's Working is already running."
         } catch {
             socketError = "Could not listen for agent events: \(error)"
         }
@@ -135,7 +135,7 @@ final class SessionStore: ObservableObject {
     }
 
     private func watchSessionsDirectory() {
-        let path = PerchPaths.claudeSessions.path
+        let path = AppPaths.claudeSessions.path
         let fd = open(path, O_EVTONLY)
         guard fd >= 0 else { return }  // No directory yet; the timer still rescans.
         watchedFD = fd
@@ -149,10 +149,10 @@ final class SessionStore: ObservableObject {
     }
 }
 
-/// Optional raw event capture for building test fixtures (`PERCH_LOG_EVENTS=1`).
+/// Optional raw event capture for building test fixtures (`WHOISWORKING_LOG_EVENTS=1`).
 enum EventLog {
     static func write(_ data: Data, at date: Date) {
-        let dir = PerchPaths.eventLog
+        let dir = AppPaths.eventLog
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         try? FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: dir.path)
         let payload = HookMessage.parse(data)?.payload ?? data
