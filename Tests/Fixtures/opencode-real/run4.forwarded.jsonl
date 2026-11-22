@@ -1,0 +1,9 @@
+{"type":"session.execution.started","created":1795357065132,"data":{"sessionID":"ses_session4"},"whoisworking":{"directory":"/Users/me/dev/demo"},"seq":2}
+{"type":"session.step.started","created":1795357066093,"data":{"sessionID":"ses_session4"},"whoisworking":{"directory":"/Users/me/dev/demo"},"seq":5}
+{"type":"session.tool.called","created":1795357067486,"data":{"sessionID":"ses_session4","id":"call_call3","name":"subagent","input":{"description":"Pong test subagent","agent":"general"}},"whoisworking":{"directory":"/Users/me/dev/demo"},"seq":10}
+{"type":"session.created","created":1795357067526,"data":{"sessionID":"ses_session5","parentID":"ses_session4","agent":"general","title":"Pong test subagent","location":{"directory":"/Users/me/dev/demo"}},"whoisworking":{"parentID":"ses_session4","rootID":"ses_session4","directory":"/Users/me/dev/demo","title":"Pong test subagent"},"seq":0}
+{"type":"session.execution.started","created":1795357067529,"data":{"sessionID":"ses_session5"},"whoisworking":{"parentID":"ses_session4","rootID":"ses_session4","directory":"/Users/me/dev/demo","title":"Pong test subagent"},"seq":2}
+{"type":"session.step.started","created":1795357068486,"data":{"sessionID":"ses_session5"},"whoisworking":{"parentID":"ses_session4","rootID":"ses_session4","directory":"/Users/me/dev/demo","title":"Pong test subagent"},"seq":5}
+{"type":"session.execution.succeeded","created":1795357071077,"data":{"sessionID":"ses_session5"},"whoisworking":{"parentID":"ses_session4","rootID":"ses_session4","directory":"/Users/me/dev/demo","title":"Pong test subagent"},"seq":12}
+{"type":"session.step.started","created":1795357072498,"data":{"sessionID":"ses_session4"},"whoisworking":{"directory":"/Users/me/dev/demo"},"seq":15}
+{"type":"session.execution.succeeded","created":1795357073610,"data":{"sessionID":"ses_session4"},"whoisworking":{"directory":"/Users/me/dev/demo"},"seq":22}

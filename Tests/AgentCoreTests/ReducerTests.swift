@@ -272,8 +272,10 @@ struct ReducerTests {
 
     @Test func sessionsWithoutAProcessAreDroppedAfterLongSilence() {
         let withPid = DiscoveredSession(sessionId: "has-pid", pid: 7, status: "busy")
+        // The ghost is working: since 2026-11-23 a pidless session waiting for the user stays up to
+        // 4 hours instead (SilenceRuleTests/waitingSessionsStayUpToFourHours).
         let s = run([
-            ev(.permissionRequested(bash), 0, id: "ghost"),
+            ev(.promptSubmitted, 0, id: "ghost"),
             ev(.promptSubmitted, 0, id: "recent"),
             .discovered(withPid, at: at(0)),
             ev(.promptSubmitted, 1000, id: "recent"),

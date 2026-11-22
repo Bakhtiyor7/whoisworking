@@ -3,6 +3,13 @@ import Foundation
 public enum Reducer {
     /// A session with no pid and no events for this long is assumed gone (its SessionEnd was missed).
     public static let orphanTimeout: TimeInterval = 15 * 60
+    /// The same, for a session waiting for the user: agents send nothing while they wait (SES-08).
+    public static let waitingOrphanTimeout: TimeInterval = 4 * 60 * 60
+
+    /// How long a session with no pid may stay silent before it is assumed gone.
+    public static func silenceLimit(for state: SessionState) -> TimeInterval {
+        state == .needsApproval || state == .waitingForReply ? waitingOrphanTimeout : orphanTimeout
+    }
     /// A session file's "idle" must be this much newer than the hook-derived state to override it.
     public static let fileStatusMargin: TimeInterval = 0.5
 }
@@ -40,7 +47,7 @@ public func reduce(_ state: SessionsState, _ event: StoreEvent) -> SessionsState
         }
     case .pruneOrphans(let now):
         for (id, session) in next.sessions
-        where session.pid == nil && now.timeIntervalSince(session.lastEventAt) > Reducer.orphanTimeout {
+        where session.pid == nil && now.timeIntervalSince(session.lastEventAt) > Reducer.silenceLimit(for: session.state) {
             next.sessions[id] = nil
         }
     case .viewed(let ids, _):
@@ -78,9 +85,18 @@ private func applyAgent(_ e: AgentEvent, to state: inout SessionsState) {
         session = Session(id: id, agent: e.agent, state: .idle, stateSince: e.date)
     }
 
+    // Events that would change nothing leave the session as it is, clock included (RED-20).
+    if isIgnored(e, by: session) { return }
+    if case .renamed = e.kind {
+        if let name = e.name, !name.trimmingCharacters(in: .whitespaces).isEmpty { session.name = name }
+        state.sessions[id] = session
+        return
+    }
+
     session.hasHookEvents = true
     session.lastEventAt = e.date
     if let cwd = e.cwd, !cwd.isEmpty { session.cwd = cwd }
+    if let name = e.name, !name.trimmingCharacters(in: .whitespaces).isEmpty { session.name = name }
     if let turnId = e.turnId { session.turnId = turnId }
     if let path = e.transcriptPath, !path.isEmpty { session.transcriptPath = path }
     if let pid = e.pid {
@@ -102,7 +118,10 @@ private func applyAgent(_ e: AgentEvent, to state: inout SessionsState) {
             session.state = newState
             session.stateSince = e.date
         }
-        if newState != .needsApproval { session.pendingTool = nil }
+        if newState != .needsApproval {
+            session.pendingTool = nil
+            session.openRequests = []
+        }
     }
 
     switch e.kind {
@@ -113,6 +132,7 @@ private func applyAgent(_ e: AgentEvent, to state: inout SessionsState) {
         // The user stopped the turn themselves, so they have seen it.
         enter(.idle)
         session.activity = nil
+        if let turn = e.turnId { session.endedTurnId = turn }
 
     case .promptSubmitted, .resumed:
         enter(.working)
@@ -141,6 +161,39 @@ private func applyAgent(_ e: AgentEvent, to state: inout SessionsState) {
         enter(.needsApproval)
         session.pendingTool = tool
         session.activity = tool.summary
+        if let requestId = tool.requestId {
+            // The same request asked twice is still one request.
+            if let i = session.openRequests.firstIndex(where: { $0.requestId == requestId }) {
+                session.openRequests[i] = tool
+            } else {
+                session.openRequests.append(tool)
+            }
+        }
+
+    case .permissionReplied(let requestId):
+        // isIgnored let only a reply to a request that is still open through.
+        guard let i = session.openRequests.firstIndex(where: { $0.requestId == requestId }) else { break }
+        session.openRequests.remove(at: i)
+        if let newest = session.openRequests.last {
+            session.pendingTool = newest
+        } else {
+            enter(.working)
+        }
+
+    case .activity(let tool):
+        let line = tool?.summary
+        switch session.state {
+        case .working, .needsApproval:
+            if let line { session.activity = line }
+        case .doneUnseen, .idle, .error, .waitingForReply:
+            // isIgnored already dropped activity from the turn that ended; this is a new or unknown turn.
+            enter(.working)
+            session.activity = line
+            session.message = nil
+        }
+
+    case .renamed:
+        break
 
     case .permissionDenied:
         enter(.working)
@@ -157,6 +210,8 @@ private func applyAgent(_ e: AgentEvent, to state: inout SessionsState) {
         }
 
     case .waitingForReply(let message):
+        // Open approvals outrank a question: both need the user, and the approvals must not be lost (RED-17).
+        if session.state == .needsApproval, !session.openRequests.isEmpty { break }
         enter(.waitingForReply)
         if let message { session.message = message }
 
@@ -164,11 +219,13 @@ private func applyAgent(_ e: AgentEvent, to state: inout SessionsState) {
         enter(.doneUnseen)
         session.activity = nil
         session.message = lastMessage
+        if let turn = e.turnId { session.endedTurnId = turn }
 
     case .failed(let error):
         enter(.error)
         session.activity = nil
         session.message = error
+        if let turn = e.turnId { session.endedTurnId = turn }
 
     case .subagent(let started, let type):
         if started, session.state == .working {
@@ -179,9 +236,22 @@ private func applyAgent(_ e: AgentEvent, to state: inout SessionsState) {
     state.sessions[id] = session
 }
 
+/// An event that would change nothing: a reply to no open request, or activity from the turn that ended.
+private func isIgnored(_ e: AgentEvent, by session: Session) -> Bool {
+    switch e.kind {
+    case .permissionReplied(let requestId):
+        return session.state != .needsApproval || !session.openRequests.contains { $0.requestId == requestId }
+    case .activity:
+        guard let turn = e.turnId, turn == session.endedTurnId else { return false }
+        return session.state != .working && session.state != .needsApproval
+    default:
+        return false
+    }
+}
+
 private func createsSession(_ kind: AgentEvent.Kind) -> Bool {
     switch kind {
-    case .sessionEnded, .subagent: false
+    case .sessionEnded, .subagent, .renamed, .permissionReplied: false
     case .toolStarted(_, let subagent), .toolFinished(_, let subagent): !subagent
     default: true
     }

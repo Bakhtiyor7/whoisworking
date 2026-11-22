@@ -1,14 +1,20 @@
 import Foundation
 
-/// Which coding agent a session belongs to. Only Claude Code in v1.
-public enum AgentKind: String, Sendable, Codable, Equatable {
+/// Which coding agent a session belongs to.
+public enum AgentKind: String, Sendable, Codable, Equatable, CaseIterable {
     case claudeCode
     case codex
+    case cursor
+    case openCode
+    case antigravity
 
     public var shortCode: String {
         switch self {
         case .claudeCode: "CC"
         case .codex: "CX"
+        case .cursor: "CU"
+        case .openCode: "OC"
+        case .antigravity: "AG"
         }
     }
 
@@ -16,6 +22,9 @@ public enum AgentKind: String, Sendable, Codable, Equatable {
         switch self {
         case .claudeCode: "Claude Code"
         case .codex: "Codex"
+        case .cursor: "Cursor"
+        case .openCode: "OpenCode"
+        case .antigravity: "Antigravity"
         }
     }
 }
@@ -46,11 +55,14 @@ public struct ToolActivity: Equatable, Sendable {
     public var summary: String
     /// The full command, file path or input, shown in the Needs you card.
     public var detail: String?
+    /// The agent's own id for a permission request, when it names them (OpenCode `per_…`).
+    public var requestId: String?
 
-    public init(name: String, summary: String, detail: String? = nil) {
+    public init(name: String, summary: String, detail: String? = nil, requestId: String? = nil) {
         self.name = name
         self.summary = summary
         self.detail = detail
+        self.requestId = requestId
     }
 }
 
@@ -70,14 +82,18 @@ public struct Session: Equatable, Sendable, Identifiable {
     public var entrypoint: String?
     /// What it is doing now, one line.
     public var activity: String?
-    /// The tool call waiting for approval.
+    /// The tool call waiting for approval (the newest open request).
     public var pendingTool: ToolActivity?
+    /// Permission requests still waiting for a reply, oldest first, for agents that name them.
+    public var openRequests: [ToolActivity] = []
     /// Last notification text, assistant message or error text.
     public var message: String?
     /// False until a hook event arrives; until then the session file's status drives the state.
     public var hasHookEvents: Bool
     /// The agent's current turn id, when its hooks report one (Codex).
     public var turnId: String? = nil
+    /// The turn that last ended (done, error or interrupted), so its late events change nothing (RED-18).
+    public var endedTurnId: String? = nil
     /// The agent's transcript file, when its hooks report one.
     public var transcriptPath: String? = nil
 
@@ -145,6 +161,8 @@ public struct AgentEvent: Equatable, Sendable {
         /// A tool finished (success or failure).
         case toolFinished(ToolActivity, subagent: Bool)
         case permissionRequested(ToolActivity)
+        /// The user answered the permission request with this id (OpenCode `permission.replied`).
+        case permissionReplied(requestId: String)
         /// Auto mode denied a tool; the agent carries on.
         case permissionDenied
         /// The agent's own "needs your permission" notification.
@@ -161,6 +179,11 @@ public struct AgentEvent: Equatable, Sendable {
         case failed(error: String)
         /// A subagent started or stopped. Never creates a top-level session.
         case subagent(started: Bool, type: String?)
+        /// The agent is doing something, seen after the fact (Cursor post-tool events, Antigravity
+        /// model calls). Scoped to the event's turn id so late events from an ended turn change nothing.
+        case activity(ToolActivity?)
+        /// Only the session's name changed. Never creates a session.
+        case renamed
     }
 
     public var sessionId: String
@@ -172,6 +195,8 @@ public struct AgentEvent: Equatable, Sendable {
     /// Turn id and transcript path, when the agent's hook payload has them.
     public var turnId: String? = nil
     public var transcriptPath: String? = nil
+    /// A session title from the agent's event (OpenCode), when it has one.
+    public var name: String? = nil
     public var kind: Kind
 
     public init(
@@ -241,6 +266,7 @@ public enum StoreEvent: Equatable, Sendable {
     case processExited(pid: Int32)
     /// The user saw these sessions in the expanded panel.
     case viewed(ids: [String], at: Date)
-    /// Drops sessions with no known process that have been silent for `Reducer.orphanTimeout`.
+    /// Drops sessions with no known process that have been silent too long: 15 minutes, or 4 hours
+    /// while waiting for the user (`Reducer.silenceLimit`).
     case pruneOrphans(now: Date)
 }

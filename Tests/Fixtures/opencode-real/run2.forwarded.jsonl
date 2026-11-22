@@ -1,0 +1,5 @@
+{"type":"session.execution.started","created":1795357027726,"data":{"sessionID":"ses_session2"},"whoisworking":{"directory":"/Users/me/dev/demo"},"seq":2}
+{"type":"session.step.started","created":1795357028741,"data":{"sessionID":"ses_session2"},"whoisworking":{"directory":"/Users/me/dev/demo"},"seq":5}
+{"type":"session.tool.called","created":1795357029976,"data":{"sessionID":"ses_session2","id":"call_call1","name":"shell","input":{"command":"echo hello"}},"whoisworking":{"directory":"/Users/me/dev/demo"},"seq":10}
+{"type":"session.step.started","created":1795357030948,"data":{"sessionID":"ses_session2"},"whoisworking":{"directory":"/Users/me/dev/demo"},"seq":15}
+{"type":"session.execution.succeeded","created":1795357035292,"data":{"sessionID":"ses_session2"},"whoisworking":{"directory":"/Users/me/dev/demo"},"seq":22}

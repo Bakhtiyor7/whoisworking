@@ -148,11 +148,14 @@ public struct HookMessage: Equatable, Sendable {
     public var payload: Data
     /// Parent pid of the hook script (`ppid=` in the header), used to find the agent process.
     public var parentPid: Int32?
+    /// The hook event, for agents whose payload has no event name (`event=` in the header, ING-10).
+    public var eventName: String?
 
-    public init(agent: String, payload: Data, parentPid: Int32? = nil) {
+    public init(agent: String, payload: Data, parentPid: Int32? = nil, eventName: String? = nil) {
         self.agent = agent
         self.payload = payload
         self.parentPid = parentPid
+        self.eventName = eventName
     }
 
     public static func parse(_ data: Data) -> HookMessage? {
@@ -168,7 +171,12 @@ public struct HookMessage: Equatable, Sendable {
             for word in words.dropFirst() where word.hasPrefix("ppid=") {
                 parentPid = Int32(word.dropFirst(5)).flatMap { $0 > 1 ? $0 : nil }
             }
-            return HookMessage(agent: agent, payload: Data(data[(newline + 1)...]), parentPid: parentPid)
+            // Letters only, exactly once; anything else is ambiguous and gives no event name.
+            let events = words.dropFirst().filter { $0.hasPrefix("event=") }.map { String($0.dropFirst(6)) }
+            let eventName = events.count == 1 && !events[0].isEmpty && events[0].allSatisfy { $0.isASCII && $0.isLetter }
+                ? events[0] : nil
+            return HookMessage(
+                agent: agent, payload: Data(data[(newline + 1)...]), parentPid: parentPid, eventName: eventName)
         }
         // No header: a bare JSON object is treated as Claude Code.
         let firstByte = data.first { !($0 == 0x20 || $0 == 0x0A || $0 == 0x0D || $0 == 0x09) }
@@ -178,8 +186,15 @@ public struct HookMessage: Equatable, Sendable {
 
     public func event(receivedAt date: Date) -> AgentEvent? {
         switch agent {
-        case "claude-code": ClaudeCodeAdapter.event(from: payload, receivedAt: date)
+        case "claude-code":
+            // cursor-agent also runs Claude Code hooks; its JSON is never a Claude Code session (CUR-03).
+            CursorAdapter.isCursorPayload(payload)
+                ? CursorAdapter.event(from: payload, receivedAt: date)
+                : ClaudeCodeAdapter.event(from: payload, receivedAt: date)
         case "codex": CodexAdapter.event(from: payload, receivedAt: date)
+        case "cursor": CursorAdapter.event(from: payload, receivedAt: date)
+        case "opencode": OpenCodeAdapter.event(from: payload, receivedAt: date)
+        case "antigravity": AntigravityAdapter.event(from: payload, eventName: eventName, receivedAt: date)
         default: nil
         }
     }

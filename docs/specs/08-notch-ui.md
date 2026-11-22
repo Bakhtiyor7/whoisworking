@@ -25,9 +25,9 @@ Verified by: snapshot (collapsed, one session in needs approval)
 
 The expanded panel is 560 pt wide with sections Needs you, Working, Done. A Needs you card shows the session name, the request title, the full command or text and an "Open session" button. Other sessions are 44 pt rows with a state icon, name, one-line detail and elapsed time.
 
-When a session appears as a row or a Needs you card, its 24 pt badge shows the matching Claude Code or Codex icon in its original colors. The icons are bundled for offline use. VoiceOver identifies each agent by its full name.
+When a session appears as a row or a Needs you card, its 24 pt badge shows the matching Claude Code, Codex, Cursor, OpenCode or Antigravity icon in its original colors. The icons are bundled for offline use. VoiceOver identifies each agent by its full name.
 
-Verified by: color snapshot of Claude Code and Codex in both session rows and Needs you cards
+Verified by: color snapshot of Claude Code and Codex in both session rows and Needs you cards; snapshot on 2026-11-22 with an OpenCode Needs you card, a Cursor row and an Antigravity row (synthetic events)
 
 ### UI-04 Panel body
 
@@ -79,7 +79,7 @@ Verified by: manual check with Reduce Motion on
 
 ### UI-12 Settings
 
-Opening WhoIsWorking.app while it runs shows Settings. Settings has one section per agent with the hook status (installed, partial, not installed), install and uninstall buttons, and Quit.
+Opening WhoIsWorking.app while it runs shows Settings. Settings has one section per agent (Claude Code, Codex, Cursor and Antigravity marked experimental, OpenCode) with the hook or plugin status (installed, partial, not installed), install and uninstall buttons, and Quit. The window is 640 pt tall and scrolls.
 
 Verified by: snapshot of the window (`WHOISWORKING_OPEN_SETTINGS=1`)
 

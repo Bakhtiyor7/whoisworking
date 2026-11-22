@@ -19,6 +19,9 @@ let package = Package(
             resources: [
                 .embedInCode("AgentIcons/claudecode.png"),
                 .embedInCode("AgentIcons/codex.png"),
+                .embedInCode("AgentIcons/cursor.png"),
+                .embedInCode("AgentIcons/opencode.png"),
+                .embedInCode("AgentIcons/antigravity.png"),
             ]
         ),
         .testTarget(name: "AgentCoreTests", dependencies: ["AgentCore"]),

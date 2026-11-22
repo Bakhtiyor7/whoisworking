@@ -109,3 +109,27 @@ Tests: `CodexReducerTests/hookPidIsRecordedSoTheSessionIsCleanedUpWhenCodexExits
 A running agent process with no session shows as an `idle` placeholder (`process:<pid>`). It is removed when a real session with the same pid appears, when a live session of the same agent exists in the same folder, or when the process exits. No placeholder is created next to a live session of that agent in the same folder.
 
 Tests: `CodexReducerTests/aRunningCodexCliWithoutEventsShowsAsAnIdlePlaceholder`, `CodexReducerTests/theFirstHookEventFromThatProcessReplacesThePlaceholder`, `CodexReducerTests/noPlaceholderNextToALiveCodexSessionInTheSameFolder`, `CodexReducerTests/aLiveSessionReplacesThePlaceholderForItsFolder`, `CodexReducerTests/placeholdersGoWhenTheProcessExits`
+
+### RED-17 Approvals keyed by request id
+
+Given an agent that names each permission request (OpenCode), when requests are asked, then the session keeps every open request, once per id, and shows the newest. A reply closes only the request with its id. The session leaves `needsApproval` for `working` when no request is left open. A reply for an unknown or already closed request changes nothing (RED-20), so a late reply cannot wake a finished session. A question to the user (`waitingForReply`) while requests are open leaves the session in `needsApproval` with its requests. Leaving `needsApproval` for any other reason closes every open request.
+
+Tests: `RequestReplyTests/aReplyClosesOnlyItsOwnRequest`, `RequestReplyTests/aReplyForAnUnknownRequestChangesNothing`, `RequestReplyTests/aLateReplyAfterTheTurnEndedChangesNothing`, `RequestReplyTests/aRepeatedRequestIsOpenOnce`, `RequestReplyTests/aQuestionDoesNotHideOpenApprovals`
+
+### RED-18 Observed activity
+
+Given an agent that reports tools only after they run (Cursor), reports model calls (Antigravity) or reports model steps (OpenCode), when an activity event arrives, then a `working` session updates its activity line, and a session in `needsApproval` only updates the line. A `doneUnseen`, `idle`, `error` or `waitingForReply` session becomes `working`, unless the event's turn id is the one of the turn that last ended (done, error or interrupted): that late activity changes nothing (RED-20). An event without a turn id always counts as new work.
+
+Tests: `ObservedActivityTests/firstActivityOfANewTurnMeansWorking`, `ObservedActivityTests/lateActivityFromTheEndedTurnChangesNothing`, `ObservedActivityTests/activityWithoutTurnIdsMeansWorking`, `ObservedActivityTests/activityDuringApprovalOnlyUpdatesTheLine`, `ObservedActivityTests/activityInTheTurnTheSessionStartedInIsWork`, `ObservedActivityTests/activityWakesIdleErrorAndWaitingSessions`
+
+### RED-19 Names from hook events
+
+When a hook event carries a session name (OpenCode titles), the session takes it. A rename changes the name and nothing else, not even the time of the newest event, and never creates a session.
+
+Tests: `SessionNameTests/anEventNameBecomesTheSessionName`, `SessionNameTests/aRenameChangesOnlyTheName`
+
+### RED-20 Ignored events change nothing
+
+An event the rules above ignore (a reply to no open request, activity from the turn that ended) leaves the session exactly as it was, including the time of its newest event. So it can neither delay the 15-minute silence rule nor cause a later, older-dated event to be dropped.
+
+Tests: `IgnoredEventTests/anIgnoredEventDoesNotMoveTheClock`

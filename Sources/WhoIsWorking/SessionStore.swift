@@ -111,8 +111,10 @@ final class SessionStore: ObservableObject {
 
     private func receive(_ event: AgentEvent) {
         apply(.agent(event))
-        // A new session id usually means a new session file: pick up its pid and name now.
-        if state.sessions[event.sessionId]?.pid == nil { rescan() }
+        // A new Claude Code session usually means a new session file: pick up its pid and name now.
+        // Cursor, OpenCode and Antigravity have no session files, so their events never trigger a full scan.
+        let scans = event.agent == .claudeCode || event.agent == .codex
+        if scans, state.sessions[event.sessionId]?.pid == nil { rescan() }
     }
 
     // MARK: Discovery
@@ -155,9 +157,15 @@ enum EventLog {
         let dir = AppPaths.eventLog
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         try? FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: dir.path)
-        let payload = HookMessage.parse(data)?.payload ?? data
-        let name = (try? JSONSerialization.jsonObject(with: payload) as? [String: Any])?["hook_event_name"] as? String ?? "unknown"
+        let message = HookMessage.parse(data)
+        let payload = message?.payload ?? data
+        let json = try? JSONSerialization.jsonObject(with: payload) as? [String: Any]
+        // Claude Code, Codex and Cursor name the event in the JSON, OpenCode in `type`, Antigravity in the header.
+        let event = (json?["hook_event_name"] ?? json?["type"]) as? String ?? message?.eventName ?? "unknown"
+        let label = "\(message?.agent ?? "unknown")-\(event)"
+            .filter { $0.isLetter || $0.isNumber || $0 == "-" || $0 == "." || $0 == "_" }
         let stamp = String(format: "%.3f", date.timeIntervalSince1970)
-        try? payload.write(to: dir.appendingPathComponent("\(stamp)-\(name).json"))
+        // A short random suffix keeps two events in the same millisecond apart.
+        try? payload.write(to: dir.appendingPathComponent("\(stamp)-\(label)-\(UUID().uuidString.prefix(6)).json"))
     }
 }

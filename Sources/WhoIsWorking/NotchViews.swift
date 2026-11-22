@@ -104,11 +104,17 @@ struct AgentMark: View {
 
     private static let claudeCodeIcon = NSImage(data: Data(PackageResources.claudecode_png))
     private static let codexIcon = NSImage(data: Data(PackageResources.codex_png))
+    private static let cursorIcon = NSImage(data: Data(PackageResources.cursor_png))
+    private static let openCodeIcon = NSImage(data: Data(PackageResources.opencode_png))
+    private static let antigravityIcon = NSImage(data: Data(PackageResources.antigravity_png))
 
     private var icon: NSImage? {
         switch agent {
         case .claudeCode: Self.claudeCodeIcon
         case .codex: Self.codexIcon
+        case .cursor: Self.cursorIcon
+        case .openCode: Self.openCodeIcon
+        case .antigravity: Self.antigravityIcon
         }
     }
 

@@ -5,7 +5,7 @@ Code: `Sources/AgentCore/HookInstaller.swift`, `Sources/AgentCore/OrderedJSON.sw
 
 ## Purpose
 
-Add and remove WhoIsWorking's hooks in files WhoIsWorking does not own (`~/.claude/settings.json`, `~/.codex/hooks.json`), which other tools also write hooks into. These requirements are a contract: a change that breaks one is a bug, whatever else it achieves.
+Add and remove WhoIsWorking's hooks in files WhoIsWorking does not own (`~/.claude/settings.json`, `~/.codex/hooks.json`, `~/.cursor/hooks.json`, `~/.gemini/config/hooks.json`), which other tools also write hooks into. These requirements are a contract: a change that breaks one is a bug, whatever else it achieves.
 
 The app was called Perch until 2026-11-22, and its entries used `/Perch/perch-hook`. The installer does not recognise those: remove them with the old Perch build before installing WhoIsWorking's hooks.
 
@@ -13,9 +13,9 @@ The app was called Perch until 2026-11-22, and its entries used `/Perch/perch-ho
 
 ### INS-01 Install adds one entry per event
 
-Install appends one handler, recognisable by `/WhoIsWorking/whoisworking-hook` in its command, to each of the agent's events: 13 for Claude Code (timeout 5 s), 10 for Codex (timeout 3 s).
+Install appends one handler, recognisable by `/WhoIsWorking/whoisworking-hook` in its command, to each of the agent's events: 13 for Claude Code (timeout 5 s), 10 for Codex (timeout 3 s), 6 for Cursor (timeout 5 s). For Antigravity it writes one named group with a handler for each of 4 events (timeout 5 s, INS-16).
 
-Tests: `HookInstallerTests/installAddsOneTaggedHandlerPerEvent`, `CodexHookInstallerTests/codexTargetCoversTheCodexEvents`
+Tests: `HookInstallerTests/installAddsOneTaggedHandlerPerEvent`, `CodexHookInstallerTests/codexTargetCoversTheCodexEvents`, `CursorHookInstallerTests/installAppendsOneFlatEntryPerEventAfterOtherTools`, `AntigravityHookInstallerTests/installAddsOneNamedGroupWithTheEventInEachCommand`
 
 ### INS-02 Other tools' entries are untouched
 
@@ -33,7 +33,9 @@ Tests: `HookInstallerTests/installWritesATimestampedBackupOfTheOriginalFirst`
 
 Running install again changes nothing.
 
-Tests: `HookInstallerTests/installIsIdempotent`
+Reinstalling puts WhoIsWorking's entry back where it was: an event key emptied while reinstalling keeps its place instead of moving to the end.
+
+Tests: `HookInstallerTests/installIsIdempotent`, `CursorHookInstallerTests/reinstallDoesNotReorderEvents`
 
 ### INS-05 Uninstall removes exactly WhoIsWorking's entries
 
@@ -51,7 +53,9 @@ Tests: `HookInstallerTests/refusesToWriteWhenTheFileIsNotValidJSON`, `HookInstal
 
 Given no settings file, install creates it; uninstall then removes WhoIsWorking's keys again.
 
-Tests: `HookInstallerTests/createsTheFileWhenMissingAndRemovesOurKeysOnUninstall`
+Install creates a missing parent folder too (for example `~/.gemini/config`).
+
+Tests: `HookInstallerTests/createsTheFileWhenMissingAndRemovesOurKeysOnUninstall`, `AntigravityHookInstallerTests/installCreatesAMissingConfigFolder`
 
 ### INS-08 Status
 
@@ -85,16 +89,34 @@ Tests: `OrderedJSONTests/roundTripIsByteIdentical`, `OrderedJSONTests/keyOrderIs
 
 ### INS-13 Command line
 
-`WhoIsWorking hooks status|preview|install|uninstall [--agent claude-code|codex] [--settings <path>]`:
+`WhoIsWorking hooks status|preview|install|uninstall [--agent claude-code|codex|cursor|antigravity|opencode] [--settings <path>]`:
 
 - install writes the exact hook script;
-- `--agent codex` works on the Codex hooks file;
+- `--agent codex`, `--agent cursor` and `--agent antigravity` work on that agent's hook file, and `--agent opencode` on the OpenCode plugin file (OPC-01);
 - an unknown agent is rejected; an unknown subcommand prints usage.
 
-Tests: `HooksCommandTests/installWritesTheExactScript`, `HooksCommandTests/codexAgentWritesTheCodexHooksFile`, `HooksCommandTests/unknownAgentIsRejected`, `HooksCommandTests/unknownSubcommandPrintsUsage`
+Tests: `HooksCommandTests/installWritesTheExactScript`, `HooksCommandTests/codexAgentWritesTheCodexHooksFile`, `HooksCommandTests/cursorAndAntigravityAgentsWriteTheirOwnFiles`, `HooksCommandTests/unknownAgentIsRejected`, `HooksCommandTests/unknownSubcommandPrintsUsage`
 
 ### INS-14 Hook script lifetime
 
-Uninstall on the default settings removes the hook script, unless another agent's default hook file still uses it. Uninstall on another settings file (`--settings`) leaves the script alone.
+Uninstall on the default settings removes the hook script, unless another agent's default hook file still uses it. A default hook file that WhoIsWorking cannot read (for example Antigravity's, which may contain comments) counts as still using it. Uninstall on another settings file (`--settings`) always leaves the script alone. The OpenCode plugin does not use the script and plays no part here.
 
-Tests: `HooksCommandTests/uninstallOnTheDefaultSettingsRemovesTheHookScript`, `HooksCommandTests/theScriptStaysWhileAnotherAgentStillUsesIt`, `HooksCommandTests/uninstallOnAnotherSettingsFileLeavesTheHookScriptAlone`
+Tests: `HooksCommandTests/uninstallOnTheDefaultSettingsRemovesTheHookScript`, `HooksCommandTests/theScriptStaysWhileAnotherAgentStillUsesIt`, `HooksCommandTests/uninstallOnAnotherSettingsFileLeavesTheHookScriptAlone`, `HooksCommandTests/uninstallOnAnotherFileKeepsTheScriptEvenWhenNothingElseUsesIt`, `HooksCommandTests/theScriptStaysWhenAHookFileCannotBeRead`
+
+### INS-15 Cursor's file shape
+
+`~/.cursor/hooks.json` is `{"version": 1, "hooks": {"<event>": [{"command", "timeout", …}]}}`: a flat list of entries per event, with no matcher groups. Install appends one `{"command", "timeout"}` entry to each event, after other tools' entries. A missing file is created with `"version": 1` first. An existing file with hooks but no numeric `version` is refused, because Cursor rejects it too. Uninstall removes only WhoIsWorking's entries and the event keys it leaves empty, and keeps `version`.
+
+Tests: `CursorHookInstallerTests/installAppendsOneFlatEntryPerEventAfterOtherTools`, `CursorHookInstallerTests/aNewFileStartsWithVersionOne`, `CursorHookInstallerTests/uninstallRestoresTheOriginalExactly`, `CursorHookInstallerTests/refusesAFileWithHooksButNoVersion`, `CursorHookInstallerTests/reportsAMissingEventAsPartial`
+
+### INS-16 Antigravity's named group
+
+`~/.gemini/config/hooks.json` maps hook names to their events. WhoIsWorking owns the top-level `"whoisworking"` key and nothing else. Its value holds one handler per event, `{"type": "command", "command": "<script> antigravity <Event>", "timeout": 5}`, directly under `SessionStart`, `PreInvocation` and `Stop`, and inside a `{"matcher": "", "hooks": […]}` group under `PostToolUse`. Install sets the key and keeps an existing `"enabled"` value. A disabled group reports as partial, and install leaves it disabled. A `"whoisworking"` key that holds anything else is refused on install and on uninstall: a command that is not exactly WhoIsWorking's (including one that wraps the script), a handler for the wrong event, another matcher, unknown or repeated fields. Uninstall deletes the key. Comments or trailing commas, which Antigravity allows, make the file unreadable for WhoIsWorking: it refuses and changes nothing.
+
+Tests: `AntigravityHookInstallerTests/installAddsOneNamedGroupWithTheEventInEachCommand`, `AntigravityHookInstallerTests/otherGroupsAreUntouchedAndUninstallRestoresExactly`, `AntigravityHookInstallerTests/refusesAGroupWithEntriesItDidNotWrite`, `AntigravityHookInstallerTests/keepsTheEnabledFlagAndReportsADisabledGroupAsPartial`, `AntigravityHookInstallerTests/refusesCommentsAndChangesNothing`
+
+### INS-17 A no-op writes nothing
+
+When install or uninstall would leave the parsed content unchanged, the file is not written and no backup is made, even if its formatting differs from WhoIsWorking's.
+
+Tests: `HookInstallerTests/aLogicalNoOpWritesNothing` (uninstall on a compact file without WhoIsWorking's hooks, and reinstall on a compact file that has them)

@@ -16,7 +16,7 @@ What WhoIsWorking does, written as numbered requirements. Tests prove them; `scr
 | [08 Notch UI](08-notch-ui.md) | UI | implemented |
 | [10 Design for Settings, empty state, pill](10-settings-empty-pill-design.md) | DSN | draft |
 | [11 Cursor adapter](11-cursor-adapter.md) | CUR | draft |
-| [12 OpenCode adapter](12-opencode-adapter.md) | OPC | draft |
+| [12 OpenCode adapter](12-opencode-adapter.md) | OPC | implemented |
 | [13 Distribution](13-distribution.md) | DST | draft |
 | [14 Antigravity adapter](14-antigravity-adapter.md) | ANT | draft |
 

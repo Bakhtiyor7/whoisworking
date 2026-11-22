@@ -1,0 +1,49 @@
+{
+  "ses_session2": {
+    "id": "ses_session2",
+    "projectID": "global",
+    "time": {
+      "created": 1795357027428,
+      "updated": 1795357027724
+    },
+    "location": {
+      "directory": "/Users/me/dev/demo"
+    }
+  },
+  "ses_session3": {
+    "id": "ses_session3",
+    "projectID": "global",
+    "time": {
+      "created": 1795357052138,
+      "updated": 1795357052445
+    },
+    "location": {
+      "directory": "/Users/me/dev/demo"
+    }
+  },
+  "ses_session4": {
+    "id": "ses_session4",
+    "projectID": "global",
+    "time": {
+      "created": 1795357064723,
+      "updated": 1795357065127
+    },
+    "location": {
+      "directory": "/Users/me/dev/demo"
+    }
+  },
+  "ses_session5": {
+    "id": "ses_session5",
+    "parentID": "ses_session4",
+    "projectID": "global",
+    "agent": "general",
+    "time": {
+      "created": 1795357067526,
+      "updated": 1795357067527
+    },
+    "title": "Pong test subagent",
+    "location": {
+      "directory": "/Users/me/dev/demo"
+    }
+  }
+}

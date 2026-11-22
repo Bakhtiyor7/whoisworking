@@ -44,10 +44,12 @@ private func send(_ data: Data, to path: String) throws {
 }
 
 /// Runs the hook script with `stdin`, returns (exit code, stdout+stderr, seconds).
-private func runHook(_ script: URL, stdin: String, socket: String) throws -> (Int32, String, TimeInterval) {
+private func runHook(
+    _ script: URL, stdin: String, socket: String, arguments: [String] = ["claude-code"]
+) throws -> (Int32, String, TimeInterval) {
     let p = Process()
     p.executableURL = script
-    p.arguments = ["claude-code"]
+    p.arguments = arguments
     p.environment = ["WHOISWORKING_SOCKET": socket, "PATH": "/usr/bin:/bin", "HOME": NSHomeDirectory()]
     let input = Pipe(), output = Pipe()
     p.standardInput = input
@@ -191,6 +193,50 @@ struct HookScriptTests {
         #expect(got.first.map { String(decoding: $0, as: UTF8.self) } == "whoisworking1 claude-code ppid=\(getpid())\n" + payload)
         #expect(got.first.flatMap { HookMessage.parse($0)?.parentPid } == getpid())
         #expect(got.first.flatMap { HookMessage.parse($0)?.event(receivedAt: Date()) }?.kind == .stopped(lastMessage: nil))
+    }
+
+    @Test func forwardsTheEventNameWhenGiven() async throws {
+        let script = try installScript()
+        let path = try shortTempDir().appendingPathComponent("events.sock").path
+        let inbox = Inbox()
+        let server = EventSocketServer(path: path) { inbox.add($0) }
+        try server.start()
+        defer { server.stop() }
+
+        let payload = #"{"conversationId":"c1","fullyIdle":true}"#
+        let (code, output, _) = try runHook(script, stdin: payload, socket: path, arguments: ["antigravity", "Stop"])
+        #expect(code == 0)
+        #expect(output.isEmpty)
+        let got = await inbox.wait(for: 1)
+        #expect(got.first.map { String(decoding: $0, as: UTF8.self) } == "whoisworking1 antigravity ppid=\(getpid()) event=Stop\n" + payload)
+        #expect(got.first.flatMap { HookMessage.parse($0)?.eventName } == "Stop")
+    }
+
+    @Test func malformedEventArgumentsAreLeftOut() async throws {
+        let script = try installScript()
+        let path = try shortTempDir().appendingPathComponent("events.sock").path
+        let inbox = Inbox()
+        let server = EventSocketServer(path: path) { inbox.add($0) }
+        try server.start()
+        defer { server.stop() }
+        for bad in ["Stop extra", "Stop;rm", ""] {
+            let (code, output, _) = try runHook(script, stdin: "{}", socket: path, arguments: ["antigravity", bad])
+            #expect(code == 0)
+            #expect(output.isEmpty)
+        }
+        let got = await inbox.wait(for: 3)
+        for message in got {
+            #expect(String(decoding: message, as: UTF8.self) == "whoisworking1 antigravity ppid=\(getpid())\n{}")
+        }
+    }
+
+    @Test func exitsZeroSilentlyWithAnEventNameAndNoApp() throws {
+        let script = try installScript()
+        let missing = try shortTempDir().appendingPathComponent("none.sock").path
+        let (code, output, seconds) = try runHook(script, stdin: "{}", socket: missing, arguments: ["antigravity", "Stop"])
+        #expect(code == 0)
+        #expect(output.isEmpty)
+        #expect(seconds < 0.5)
     }
 }
 

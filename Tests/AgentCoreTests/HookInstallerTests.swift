@@ -187,6 +187,24 @@ struct HookInstallerTests {
         #expect(t.backups.isEmpty)
     }
 
+    @Test func aLogicalNoOpWritesNothing() throws {
+        // Compact JSON with no WhoIsWorking hooks: uninstall must not rewrite it in WhoIsWorking's formatting.
+        let compact = #"{"hooks":{"Stop":[{"hooks":[{"type":"command","command":"x"}]}]},"model":"opus"}"#
+        let t = try TempSettings(compact)
+        let preview = try t.installer.preview(.uninstall)
+        #expect(!preview.changes)
+        #expect(!(try t.installer.uninstall().changed))
+        #expect(t.text == compact)
+        #expect(t.backups.isEmpty)
+        // Installed already, in compact form: reinstalling writes nothing either.
+        try t.installer.install()
+        let installed = t.installer
+        let compactInstalled = withoutWhitespace(t.text)
+        try Data(compactInstalled.utf8).write(to: t.file)
+        #expect(!(try installed.install().changed))
+        #expect(t.text == compactInstalled)
+    }
+
     @Test func refusesToWriteWhenTheFileIsNotValidJSON() throws {
         let broken = "{ \"hooks\": { \"Stop\": [ } "
         let t = try TempSettings(broken)
@@ -271,4 +289,22 @@ struct HookInstallerTests {
         f.dateFormat = "yyyyMMdd-HHmmss"
         return f.string(from: date)
     }
+}
+
+/// The same JSON without whitespace outside strings.
+private func withoutWhitespace(_ text: String) -> String {
+    var out = ""
+    var inString = false, escaped = false
+    for c in text {
+        if inString {
+            out.append(c)
+            if escaped { escaped = false } else if c == "\\" { escaped = true } else if c == "\"" { inString = false }
+        } else if c == "\"" {
+            inString = true
+            out.append(c)
+        } else if !c.isWhitespace {
+            out.append(c)
+        }
+    }
+    return out
 }

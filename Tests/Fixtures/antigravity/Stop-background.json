@@ -1,0 +1,13 @@
+{
+  "conversationId": "5a1e0000-0000-4000-8000-000000000001",
+  "workspacePaths": [
+    "/Users/me/dev/demo"
+  ],
+  "transcriptPath": "/Users/me/.gemini/antigravity/brain/5a1e0000-0000-4000-8000-000000000001/.system_generated/logs/transcript.jsonl",
+  "artifactDirectoryPath": "/Users/me/.gemini/antigravity/brain/5a1e0000-0000-4000-8000-000000000001",
+  "modelName": "gemini-3-pro",
+  "lastUserInput": "Fix the failing test",
+  "executionNum": 0,
+  "terminationReason": "model_stop",
+  "fullyIdle": false
+}

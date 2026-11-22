@@ -170,6 +170,22 @@ struct HookMessageTests {
         #expect(event?.sessionId == sid)
     }
 
+    @Test func headerCarriesTheEventName() {
+        let msg = HookMessage.parse(Data("whoisworking1 antigravity ppid=42 event=PreInvocation\n{}".utf8))
+        #expect(msg?.agent == "antigravity")
+        #expect(msg?.parentPid == 42)
+        #expect(msg?.eventName == "PreInvocation")
+        #expect(HookMessage.parse(Data("whoisworking1 codex ppid=42\n{}".utf8))?.eventName == nil)
+    }
+
+    @Test func malformedEventNamesAreIgnored() {
+        for header in ["event=", "event=Stop;rm", "event=Stop event=Stop", "event=Pre-Invocation"] {
+            let msg = HookMessage.parse(Data("whoisworking1 antigravity ppid=42 \(header)\n{}".utf8))
+            #expect(msg?.agent == "antigravity")
+            #expect(msg?.eventName == nil)
+        }
+    }
+
     @Test func unknownAgentsAreIgnored() {
         let event = HookMessage.parse(Data("whoisworking1 someday-agent\n{\"session_id\":\"x\"}".utf8))?.event(receivedAt: now)
         #expect(event == nil)

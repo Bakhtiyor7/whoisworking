@@ -8,22 +8,31 @@ struct HooksCommandTests {
     let dir: URL
     let defaultSettings: URL
     let defaultCodexHooks: URL
+    let defaultCursorHooks: URL
+    let defaultAntigravityHooks: URL
     let script: URL
+    var defaultPlugin: URL { dir.appendingPathComponent("opencode/plugins/whoisworking.js") }
 
     init() throws {
         dir = FileManager.default.temporaryDirectory.appendingPathComponent("whoisworking-cli-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         defaultSettings = dir.appendingPathComponent("default-settings.json")
         defaultCodexHooks = dir.appendingPathComponent("codex-hooks.json")
+        defaultCursorHooks = dir.appendingPathComponent("cursor-hooks.json")
+        defaultAntigravityHooks = dir.appendingPathComponent("antigravity-hooks.json")
         script = dir.appendingPathComponent("WhoIsWorking/whoisworking-hook")
         try Data("{}\n".utf8).write(to: defaultSettings)
     }
 
     private func run(_ args: [String]) -> (Int32, String) {
         var out = ""
-        let claude = defaultSettings, codex = defaultCodexHooks
+        // Each agent gets its own stand-in default file.
+        let files: [String: URL] = [
+            "claude-code": defaultSettings, "codex": defaultCodexHooks,
+            "cursor": defaultCursorHooks, "antigravity": defaultAntigravityHooks,
+        ]
         let code = HooksCommand.run(
-            args, defaultSettings: { $0 == .codex ? codex : claude }, hookScript: script
+            args, defaultSettings: { files[$0.id]! }, hookScript: script, defaultPlugin: defaultPlugin
         ) { out += $0 }
         return (code, out)
     }
@@ -76,8 +85,56 @@ struct HooksCommandTests {
         #expect(!FileManager.default.fileExists(atPath: script.path))
     }
 
+    @Test func cursorAndAntigravityAgentsWriteTheirOwnFiles() throws {
+        #expect(run(["install", "--agent", "cursor"]).0 == 0)
+        #expect(run(["install", "--agent", "antigravity"]).0 == 0)
+        let cursorText = try String(contentsOf: defaultCursorHooks, encoding: .utf8)
+        #expect(cursorText.contains(#"whoisworking-hook\" cursor"#))
+        let antigravityText = try String(contentsOf: defaultAntigravityHooks, encoding: .utf8)
+        #expect(antigravityText.contains(#"whoisworking-hook\" antigravity Stop"#))
+        #expect(try String(contentsOf: defaultSettings, encoding: .utf8) == "{}\n")
+        #expect(run(["status", "--agent", "cursor"]).1.hasSuffix(": installed\n"))
+        #expect(run(["status", "--agent", "antigravity"]).1.hasSuffix(": installed\n"))
+    }
+
+    @Test func uninstallOnAnotherFileKeepsTheScriptEvenWhenNothingElseUsesIt() throws {
+        // No default file uses the script, but a copy elsewhere is not the default: leave the script alone.
+        #expect(run(["install"]).0 == 0)
+        let copy = dir.appendingPathComponent("copy.json")
+        try FileManager.default.copyItem(at: defaultSettings, to: copy)
+        #expect(run(["uninstall"]).0 == 0)
+        try HookScript.write(to: script)
+        #expect(run(["uninstall", "--settings", copy.path]).0 == 0)
+        #expect(FileManager.default.fileExists(atPath: script.path))
+    }
+
+    @Test func theScriptStaysWhenAHookFileCannotBeRead() throws {
+        // Antigravity allows comments; WhoIsWorking cannot read such a file, so it may still use the script.
+        #expect(run(["install"]).0 == 0)
+        let commented = "{\n  // mine\n  \"whoisworking\": {}\n}\n"
+        try Data(commented.utf8).write(to: defaultAntigravityHooks)
+        #expect(run(["uninstall"]).0 == 0)
+        #expect(FileManager.default.fileExists(atPath: script.path))
+    }
+
+    @Test func opencodeAgentWritesThePluginFile() throws {
+        #expect(run(["status", "--agent", "opencode"]).1.hasSuffix(": notInstalled\n"))
+        let (code, out) = run(["preview", "--agent", "opencode"])
+        #expect(code == 0)
+        #expect(out == OpenCodePlugin.contents)
+        #expect(!FileManager.default.fileExists(atPath: defaultPlugin.path))
+        #expect(run(["install", "--agent", "opencode"]).0 == 0)
+        #expect(try String(contentsOf: defaultPlugin, encoding: .utf8) == OpenCodePlugin.contents)
+        #expect(run(["status", "--agent", "opencode"]).1.hasSuffix(": installed\n"))
+        // The plugin does not use the hook script.
+        #expect(!FileManager.default.fileExists(atPath: script.path))
+        #expect(run(["uninstall", "--agent", "opencode"]).0 == 0)
+        #expect(!FileManager.default.fileExists(atPath: defaultPlugin.path))
+    }
+
     @Test func unknownAgentIsRejected() {
-        #expect(run(["status", "--agent", "cursor"]).0 == 2)
+        // This used `cursor` until Cursor became a known agent; any unknown name checks the same behaviour.
+        #expect(run(["status", "--agent", "windsurf"]).0 == 2)
     }
 
     @Test func unknownSubcommandPrintsUsage() {

@@ -1,0 +1,3 @@
+{"type":"session.execution.started","created":1795357005475,"data":{"sessionID":"ses_session1"},"whoisworking":{},"seq":2}
+{"type":"session.step.started","created":1795357006424,"data":{"sessionID":"ses_session1"},"whoisworking":{"directory":"/Users/me/dev/demo"},"seq":5}
+{"type":"session.execution.succeeded","created":1795357007639,"data":{"sessionID":"ses_session1"},"whoisworking":{},"seq":12}

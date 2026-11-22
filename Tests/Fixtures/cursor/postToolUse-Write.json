@@ -1,0 +1,20 @@
+{
+  "conversation_id": "c0ffee00-0000-4000-8000-000000000001",
+  "generation_id": "gen-0001",
+  "model": "auto",
+  "cursor_version": "3.25.9",
+  "workspace_roots": [
+    "/Users/me/dev/demo"
+  ],
+  "user_email": null,
+  "transcript_path": null,
+  "hook_event_name": "postToolUse",
+  "tool_name": "Write",
+  "tool_input": {
+    "file_path": "/Users/me/dev/demo/Sources/App.swift"
+  },
+  "tool_output": "{}",
+  "tool_use_id": "tool-2",
+  "cwd": "/Users/me/dev/demo",
+  "duration": 40
+}

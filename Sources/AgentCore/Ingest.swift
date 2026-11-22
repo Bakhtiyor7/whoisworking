@@ -169,10 +169,14 @@ public enum HookScript {
     # Forwards the agent's hook JSON (stdin) to WhoIsWorking's socket and exits 0.
     # Prints nothing, never makes a decision, and does nothing when WhoIsWorking is not running.
     # ppid lets WhoIsWorking find the agent process (for cleanup and "Open session").
+    # The optional second argument names the event, for agents whose JSON does not.
     SOCK="${WHOISWORKING_SOCKET:-$HOME/Library/Application Support/WhoIsWorking/events.sock}"
     AGENT="${1:-claude-code}"
+    EVENT="${2:-}"
+    case "$EVENT" in *[!A-Za-z]*) EVENT="" ;; esac
     if [ -S "$SOCK" ]; then
-      { printf 'whoisworking1 %s ppid=%s\n' "$AGENT" "$PPID"; cat; } | /usr/bin/nc -U -w 1 "$SOCK" >/dev/null 2>&1
+      { printf 'whoisworking1 %s ppid=%s' "$AGENT" "$PPID"; [ -n "$EVENT" ] && printf ' event=%s' "$EVENT"; printf '\n'; cat; } 2>/dev/null \
+        | /usr/bin/nc -U -w 1 "$SOCK" >/dev/null 2>&1
     else
       cat >/dev/null 2>&1
     fi
@@ -187,11 +191,13 @@ public enum HookScript {
     }
 
     /// Deletes the script unless some agent's default hook file still has WhoIsWorking's hooks.
+    /// A file WhoIsWorking cannot read (Antigravity allows comments) counts as still using it (INS-14).
     public static func removeIfUnused(at url: URL, defaultSettings: (HookTarget) -> URL = { $0.defaultSettingsURL }) {
         let stillUsed = HookTarget.all.contains { t in
             let installer = HookInstaller(
                 target: t, settingsURL: defaultSettings(t), hookCommand: AppPaths.hookCommand(agent: t.id))
-            return ((try? installer.status()) ?? .notInstalled) != .notInstalled
+            guard let status = try? installer.status() else { return true }
+            return status != .notInstalled
         }
         if !stillUsed { try? FileManager.default.removeItem(at: url) }
     }

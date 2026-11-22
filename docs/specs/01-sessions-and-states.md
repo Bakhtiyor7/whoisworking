@@ -59,12 +59,18 @@ Tests: `ReducerTests/pidDeathRemovesTheSession`, `ReducerTests/pidDeathLeavesOth
 
 ### SES-08 Removal after long silence
 
-Given a session with no known pid, when it has had no event for more than 15 minutes, then it is removed. Sessions with a pid are never removed by silence.
+Given a session with no known pid, when it has had no event for more than 15 minutes, then it is removed. A session waiting for the user (`needsApproval` or `waitingForReply`) stays up to 4 hours instead, because an agent sends nothing while it waits; this matters for Cursor, OpenCode and Antigravity, which have no pid. Sessions with a pid are never removed by silence.
 
-Tests: `ReducerTests/sessionsWithoutAProcessAreDroppedAfterLongSilence`
+Tests: `ReducerTests/sessionsWithoutAProcessAreDroppedAfterLongSilence`, `SilenceRuleTests/waitingSessionsStayUpToFourHours`
 
 ### SES-09 Agents side by side
 
-Claude Code and Codex sessions live in the same list and do not affect each other.
+Claude Code, Codex, Cursor, OpenCode and Antigravity sessions live in the same list and do not affect each other.
 
-Tests: `CodexReducerTests/codexAndClaudeSessionsSitSideBySide`
+Tests: `CodexReducerTests/codexAndClaudeSessionsSitSideBySide`, `AgentKindTests/fiveAgentsSitSideBySide`
+
+### SES-10 Agent names
+
+Each agent has a full name, used for VoiceOver and Settings, and a two-letter code for the debug state: Claude Code `CC`, Codex `CX`, Cursor `CU`, OpenCode `OC`, Antigravity `AG`.
+
+Tests: `AgentKindTests/everyAgentHasANameAndACode`

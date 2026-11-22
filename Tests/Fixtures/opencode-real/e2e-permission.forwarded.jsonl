@@ -1,0 +1,6 @@
+{"type":"session.execution.started","created":1795359695264,"data":{"sessionID":"ses_e2esession1"},"whoisworking":{"directory":"/Users/me/dev/demo"},"seq":2}
+{"type":"session.step.started","created":1795359697156,"data":{"sessionID":"ses_e2esession1"},"whoisworking":{"directory":"/Users/me/dev/demo"},"seq":5}
+{"type":"session.tool.called","created":1795359698048,"data":{"sessionID":"ses_e2esession1","id":"call_e2ecall1","name":"read","input":{"path":"/etc/shells"}},"whoisworking":{"directory":"/Users/me/dev/demo"},"seq":11}
+{"type":"permission.asked","created":1795359698061,"data":{"id":"per_e2epermission1","sessionID":"ses_e2esession1","action":"external_directory","resources":["/etc/*"]},"whoisworking":{"directory":"/Users/me/dev/demo"}}
+{"type":"permission.replied","created":1795359698062,"data":{"sessionID":"ses_e2esession1","requestID":"per_e2epermission1","reply":"reject"},"whoisworking":{"directory":"/Users/me/dev/demo"}}
+{"type":"session.execution.interrupted","created":1795359698085,"data":{"sessionID":"ses_e2esession1","reason":"user"},"whoisworking":{"directory":"/Users/me/dev/demo"},"seq":16}

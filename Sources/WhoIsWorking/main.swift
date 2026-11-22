@@ -5,17 +5,17 @@ import AppKit
 final class AppDelegate: NSObject, NSApplicationDelegate {
     let store = SessionStore()
     let actions = AppActions()
-    let claudeHooks = HookManager(target: .claudeCode)
-    let codexHooks = HookManager(target: .codex)
+    let installers = AgentInstallers()
     let login = LoginItem()
-    lazy var settings = SettingsWindowController(claude: claudeHooks, codex: codexHooks, login: login)
+    lazy var settings = SettingsWindowController(installers: installers, login: login)
     lazy var notch = NotchPanelController(store: store, actions: actions)
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        claudeHooks.refresh()
-        codexHooks.refresh()
+        // Refreshing also keeps the hook script current (UI-14); the OpenCode plugin is updated here only (OPC-09).
+        installers.all.forEach { $0.refresh() }
+        installers.openCode.updatePluginIfOutdated()
         actions.hooksInstalled = { [weak self] in
-            self?.claudeHooks.status == .installed || self?.codexHooks.status == .installed
+            self?.installers.all.contains { $0.status == .installed } ?? false
         }
         actions.openSettings = { [weak self] in
             self?.notch.collapse()

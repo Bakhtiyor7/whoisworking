@@ -62,3 +62,9 @@ Tests: `HookScriptTests/forwardsStdinWithAnAgentHeader`
 The script never approves, denies or changes anything: v1 is status only. This follows from ING-07 (no output, exit 0).
 
 Tests: `HookScriptTests/exitsZeroQuicklyAndSilentlyWhenTheAppIsNotRunning`
+
+### ING-10 Event name in the header
+
+Given an agent whose payload has no event name (Antigravity), its handlers are registered with the event as a second argument: `whoisworking-hook antigravity Stop`. The script then adds `event=<name>` to the header (`whoisworking1 antigravity ppid=<pid> event=Stop`) and forwards stdin unchanged. Without a second argument the header is exactly as before. The script sends `event=` only for a name of letters and leaves anything else out. The parser also accepts only a name of letters; an empty, malformed or repeated `event=` gives no event name. The script still prints nothing and exits 0 (ING-07).
+
+Tests: `HookScriptTests/forwardsTheEventNameWhenGiven`, `HookScriptTests/exitsZeroSilentlyWithAnEventNameAndNoApp`, `HookScriptTests/malformedEventArgumentsAreLeftOut`, `HookMessageTests/headerCarriesTheEventName`, `HookMessageTests/malformedEventNamesAreIgnored`

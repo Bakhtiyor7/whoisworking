@@ -3,24 +3,50 @@ import AppKit
 import ServiceManagement
 import SwiftUI
 
-/// Install state of one agent's hooks. Writes to the agent's hook file only when the user clicks.
+/// What Settings needs from an installer: hook entries in an agent's file, or the OpenCode plugin file.
+protocol AgentInstalling: Sendable {
+    func status() throws -> HookInstallStatus
+    func install() throws -> HookInstaller.Result
+    func uninstall() throws -> HookInstaller.Result
+}
+
+extension HookInstaller: AgentInstalling {}
+extension PluginInstaller: AgentInstalling {}
+
+/// Install state of one agent's hooks (or plugin). Writes to the agent's files only when the user clicks,
+/// except that launch keeps WhoIsWorking's own hook script and plugin file current (UI-14, OPC-09).
 @MainActor
 final class HookManager: ObservableObject {
     @Published private(set) var status: HookInstallStatus?
     @Published private(set) var problem: String?
     @Published private(set) var lastResult: String?
 
-    let target: HookTarget
-    let installer: HookInstaller
+    let installer: any AgentInstalling
+    /// `~/…` path shown in Settings.
+    let displayPath: String
+    /// Event names; empty for the plugin file.
+    let events: [String]
+    /// Hook entries call the shared hook script; the OpenCode plugin talks to the socket itself.
+    let usesHookScript: Bool
 
     init(target: HookTarget) {
-        self.target = target
         installer = HookInstaller(
             target: target, settingsURL: target.defaultSettingsURL,
             hookCommand: AppPaths.hookCommand(agent: target.id))
+        displayPath = "~/" + target.defaultSettingsPath
+        events = target.events
+        usesHookScript = true
     }
 
-    var displayPath: String { "~/" + target.defaultSettingsPath }
+    /// The OpenCode plugin file (OPC-01).
+    init(plugin: PluginInstaller) {
+        installer = plugin
+        displayPath = plugin.fileURL.path.replacingOccurrences(of: NSHomeDirectory(), with: "~")
+        events = []
+        usesHookScript = false
+    }
+
+    var isPlugin: Bool { !usesHookScript }
 
     func refresh() {
         do {
@@ -31,14 +57,27 @@ final class HookManager: ObservableObject {
             problem = "\(error)"
         }
         // Keep the installed script current (it lives in the app's own folder, not in the agent's).
-        if status == .installed || status == .partial, !HookScript.isCurrent(at: AppPaths.hookScript) {
+        if usesHookScript, status == .installed || status == .partial, !HookScript.isCurrent(at: AppPaths.hookScript) {
             try? HookScript.write(to: AppPaths.hookScript)
         }
     }
 
+    /// At launch only: replaces an outdated copy of WhoIsWorking's own plugin, with a backup (OPC-09).
+    func updatePluginIfOutdated() {
+        guard let plugin = installer as? PluginInstaller else { return }
+        var failure: String?
+        do {
+            if try plugin.updateIfOutdated() { lastResult = "Updated the plugin to this version." }
+        } catch {
+            failure = "Could not update the plugin: \(error)"
+        }
+        refresh()
+        if let failure { problem = failure }  // shown in Settings, after refresh cleared the old one
+    }
+
     func install() {
         do {
-            try HookScript.write(to: AppPaths.hookScript)
+            if usesHookScript { try HookScript.write(to: AppPaths.hookScript) }
             let result = try installer.install()
             lastResult = result.backupURL.map { "Installed. Backup: \($0.lastPathComponent)" }
                 ?? (result.changed ? "Installed." : "Already installed; nothing changed.")
@@ -54,7 +93,7 @@ final class HookManager: ObservableObject {
         do {
             let result = try installer.uninstall()
             // The script is shared by all agents; it goes only when no agent's hooks still use it.
-            HookScript.removeIfUnused(at: AppPaths.hookScript)
+            if usesHookScript { HookScript.removeIfUnused(at: AppPaths.hookScript) }
             lastResult = result.backupURL.map { "Removed. Backup: \($0.lastPathComponent)" }
                 ?? (result.changed ? "Removed." : "Not installed; nothing changed.")
         } catch {
@@ -104,23 +143,32 @@ struct HooksSection: View {
     @State private var confirmInstall = false
     @State private var confirmUninstall = false
 
+    /// "hooks" or "plugin".
+    private var noun: String { hooks.isPlugin ? "plugin" : "hooks" }
+
+    private var explanation: String {
+        hooks.isPlugin
+            ? "Who's Working adds its own plugin file, \(hooks.displayPath). Other plugins stay as they are. The plugin only reports status; it never answers a permission."
+            : "Who's Working adds one hook to \(hooks.events.count) events in \(hooks.displayPath). Other tools' hooks stay as they are. A backup is saved next to the file before every change."
+    }
+
     var body: some View {
         Section(title) {
-            LabeledContent("Hooks") {
+            LabeledContent(hooks.isPlugin ? "Plugin" : "Hooks") {
                 HStack(spacing: 6) {
                     Image(systemName: statusSymbol).foregroundStyle(statusColor)
                     Text(statusText)
                 }
             }
-            Text("Who's Working adds one hook to \(hooks.target.events.count) events in \(hooks.displayPath). Other tools' hooks stay as they are. A backup is saved next to the file before every change.")
+            Text(explanation)
                 .font(.callout).foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
             if let note {
                 Text(note).font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             }
             HStack {
-                Button(hooks.status == .installed ? "Reinstall hooks" : "Install hooks…") { confirmInstall = true }
-                Button("Uninstall hooks…") { confirmUninstall = true }
+                Button(hooks.status == .installed ? "Reinstall \(noun)" : "Install \(noun)…") { confirmInstall = true }
+                Button("Uninstall \(noun)…") { confirmUninstall = true }
                     .disabled(hooks.status == .notInstalled || hooks.status == nil)
             }
             if let problem = hooks.problem {
@@ -130,17 +178,21 @@ struct HooksSection: View {
                 Text(last).font(.callout).foregroundStyle(.secondary).textSelection(.enabled)
             }
         }
-        .alert("Install \(title) hooks?", isPresented: $confirmInstall) {
+        .alert("Install \(title) \(noun)?", isPresented: $confirmInstall) {
             Button("Install") { hooks.install() }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("Who's Working will back up \(hooks.displayPath), then add its hook to: \(hooks.target.events.joined(separator: ", ")).")
+            Text(hooks.isPlugin
+                ? "Who's Working will write \(hooks.displayPath). OpenCode loads it the next time it starts."
+                : "Who's Working will back up \(hooks.displayPath), then add its hook to: \(hooks.events.joined(separator: ", ")).")
         }
-        .alert("Uninstall \(title) hooks?", isPresented: $confirmUninstall) {
+        .alert("Uninstall \(title) \(noun)?", isPresented: $confirmUninstall) {
             Button("Uninstall", role: .destructive) { hooks.uninstall() }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("Who's Working will back up \(hooks.displayPath), then remove only its own hook entries.")
+            Text(hooks.isPlugin
+                ? "Who's Working will delete \(hooks.displayPath) and nothing else."
+                : "Who's Working will back up \(hooks.displayPath), then remove only its own hook entries.")
         }
     }
 
@@ -170,9 +222,20 @@ struct HooksSection: View {
     }
 }
 
+/// The installers Settings shows, one per agent, in a fixed order.
+@MainActor
+struct AgentInstallers {
+    let claude = HookManager(target: .claudeCode)
+    let codex = HookManager(target: .codex)
+    let cursor = HookManager(target: .cursor)
+    let openCode = HookManager(plugin: PluginInstaller())
+    let antigravity = HookManager(target: .antigravity)
+
+    var all: [HookManager] { [claude, codex, cursor, openCode, antigravity] }
+}
+
 struct SettingsView: View {
-    @ObservedObject var claude: HookManager
-    @ObservedObject var codex: HookManager
+    let installers: AgentInstallers
     @ObservedObject var login: LoginItem
 
     var body: some View {
@@ -180,11 +243,23 @@ struct SettingsView: View {
             HooksSection(
                 title: "Claude Code",
                 note: "New sessions pick the hooks up; running ones may need a restart.",
-                hooks: claude)
+                hooks: installers.claude)
             HooksSection(
                 title: "Codex",
                 note: "Codex runs new hooks only after you trust them. In the Codex CLI type /hooks and trust the Who's Working entries; in the Codex app use Review hooks (or Settings › Hooks). Until then Codex skips them.",
-                hooks: codex)
+                hooks: installers.codex)
+            HooksSection(
+                title: "Cursor (experimental)",
+                note: "Covers the Cursor app and cursor-agent: working, done and errors. Cursor's hooks cannot report a waiting approval. Not yet checked against a live Cursor session.",
+                hooks: installers.cursor)
+            HooksSection(
+                title: "OpenCode",
+                note: "For OpenCode 2. Restart running OpenCode sessions to load the plugin.",
+                hooks: installers.openCode)
+            HooksSection(
+                title: "Antigravity (experimental)",
+                note: "Not yet checked against a live Antigravity session. If your hooks.json has comments, Who's Working leaves it alone. If you turned the Who's Working hooks off in Antigravity, they stay off and show as partly installed.",
+                hooks: installers.antigravity)
             Section("General") {
                 Toggle("Open at login", isOn: Binding(get: { login.enabled }, set: { login.update($0) }))
                     .disabled(!login.available)
@@ -202,11 +277,10 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 480)
-        .fixedSize(horizontal: false, vertical: true)
+        // Five agents no longer fit a short screen, so the form scrolls.
+        .frame(width: 480, height: 640)
         .onAppear {
-            claude.refresh()
-            codex.refresh()
+            installers.all.forEach { $0.refresh() }
             login.refresh()
         }
     }
@@ -215,19 +289,17 @@ struct SettingsView: View {
 @MainActor
 final class SettingsWindowController {
     private var window: NSWindow?
-    private let claude: HookManager
-    private let codex: HookManager
+    private let installers: AgentInstallers
     private let login: LoginItem
 
-    init(claude: HookManager, codex: HookManager, login: LoginItem) {
-        self.claude = claude
-        self.codex = codex
+    init(installers: AgentInstallers, login: LoginItem) {
+        self.installers = installers
         self.login = login
     }
 
     func show() {
         if window == nil {
-            let controller = NSHostingController(rootView: SettingsView(claude: claude, codex: codex, login: login))
+            let controller = NSHostingController(rootView: SettingsView(installers: installers, login: login))
             let window = NSWindow(contentViewController: controller)
             window.title = "Who's Working Settings"
             window.styleMask = [.titled, .closable]
@@ -235,8 +307,7 @@ final class SettingsWindowController {
             window.center()
             self.window = window
         }
-        claude.refresh()
-        codex.refresh()
+        installers.all.forEach { $0.refresh() }
         login.refresh()
         NSApp.activate()
         window?.makeKeyAndOrderFront(nil)

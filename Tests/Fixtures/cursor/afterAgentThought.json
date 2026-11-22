@@ -1,0 +1,14 @@
+{
+  "conversation_id": "c0ffee00-0000-4000-8000-000000000001",
+  "generation_id": "gen-0001",
+  "model": "auto",
+  "cursor_version": "3.25.9",
+  "workspace_roots": [
+    "/Users/me/dev/demo"
+  ],
+  "user_email": null,
+  "transcript_path": null,
+  "hook_event_name": "afterAgentThought",
+  "text": "Looking at the failing test.",
+  "duration_ms": 1200
+}

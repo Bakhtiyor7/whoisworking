@@ -4,7 +4,7 @@ Guidance for coding agents (Codex, Claude Code and others) working in this repos
 
 ## What this is
 
-WhoIsWorking (shown to users as "Who's Working"; called Perch until 2026-11-22, and the repo folder is still `perch`) is a macOS notch app that shows the status of Claude Code and Codex sessions on this Mac. v1 is status only: it never approves or denies anything, and the hook script never makes a decision. `README.md` is the user-facing description of behaviour (install steps, Codex coverage and gaps); update it when behaviour changes. `docs/plan.md` holds the research and the settled design (sizes, hover timings, colours). `docs/specs/` holds the requirements; see Specs below.
+WhoIsWorking (shown to users as "Who's Working"; called Perch until 2026-11-22, and the repo folder is still `perch`) is a macOS notch app that shows the status of Claude Code, Codex, Cursor, OpenCode and Antigravity sessions on this Mac. v1 is status only: it never approves or denies anything, and the hook script never makes a decision. `README.md` is the user-facing description of behaviour (install steps, Codex coverage and gaps); update it when behaviour changes. `docs/plan.md` holds the research and the settled design (sizes, hover timings, colours). `docs/specs/` holds the requirements; see Specs below.
 
 ## Commands
 
@@ -27,7 +27,7 @@ open build/WhoIsWorking.app
 The same binary is a CLI for the hook installer. Use `--settings <path>` to work on a copy instead of the real `~/.claude/settings.json` or `~/.codex/hooks.json`:
 
 ```bash
-build/WhoIsWorking.app/Contents/MacOS/WhoIsWorking hooks status|preview|install|uninstall [--agent claude-code|codex] [--settings <path>]
+build/WhoIsWorking.app/Contents/MacOS/WhoIsWorking hooks status|preview|install|uninstall [--agent claude-code|codex|cursor|antigravity|opencode] [--settings <path>]
 ```
 
 Only one WhoIsWorking can run at a time: a second copy finds the socket live and reports "Another copy of WhoIsWorking is already running."
@@ -62,7 +62,7 @@ Codex rollout tail -> CodexRollout.endOfQuietTurn() ----------------------------
 ```
 
 - **Wire format** (`HookMessage`, in `ClaudeCodeAdapter.swift`): one message per socket connection, a header line `whoisworking1 <agent> ppid=<pid>` followed by the agent's raw hook JSON. A bare JSON object with no header is treated as Claude Code. The socket handler runs before the connection is closed, on purpose: the hook process is still alive then, so its parent chain can be walked.
-- **Adapters** (`ClaudeCodeAdapter`, `CodexAdapter`) map agent-specific hook JSON to the shared `AgentEvent.Kind`. Unknown events return nil and are dropped. Adding an agent means a new adapter, a `HookTarget`, and a case in `HookMessage.event`.
+- **Adapters** (`ClaudeCodeAdapter`, `CodexAdapter`, `CursorAdapter`, `OpenCodeAdapter`, `AntigravityAdapter`) map agent-specific JSON to the shared `AgentEvent.Kind`. Unknown events return nil and are dropped. Adding an agent means a new adapter, a `HookTarget` (with its file `Format`) or a plugin file, and a case in `HookMessage.event`. Antigravity's payload has no event name, so its handlers pass it to the hook script and it arrives as `event=` in the header. OpenCode has no hooks: `OpenCodePlugin.contents` is a v2 plugin that forwards trimmed events to the socket itself.
 - **Reducer** (`reduce` in `Reducer.swift`) is the single place session state changes: a pure `(SessionsState, StoreEvent) -> SessionsState`. `SessionStore` (app target) only collects inputs and calls it. The rules it enforces, each covered by tests:
   - Events older than a session's newest applied event are ignored.
   - Ended session ids are remembered so late events cannot recreate them; only `sessionStarted` clears that.
@@ -73,7 +73,7 @@ Codex rollout tail -> CodexRollout.endOfQuietTurn() ----------------------------
 
 ### Session lifetime and process ownership
 
-Sessions are removed when their owning process dies (`processExited`), on `SessionEnd`, or after 15 minutes of silence with no known pid.
+Sessions are removed when their owning process dies (`processExited`), on `SessionEnd`, or after 15 minutes of silence with no known pid (4 hours while it waits for the user: `Reducer.silenceLimit`). Cursor, OpenCode and Antigravity sessions have no pid yet, so for them the silence rule always applies.
 
 - Claude Code: the pid comes from `~/.claude/sessions/<pid>.json`. `ProcessProbe.isAlive` compares start times to reject reused pids.
 - Codex has no session files. The hook's `ppid` is walked up to the nearest process named `codex` (often the shared `codex app-server` daemon, which outlives the terminal). Interactive Codex CLIs found in the process table before any hook event become placeholder sessions with id `process:<pid>`; a real session with the same pid, or the same agent and folder, replaces the placeholder.
@@ -83,7 +83,7 @@ Sessions are removed when their owning process dies (`processExited`), on `Sessi
 
 ### Hook installer
 
-`HookInstaller` edits files it does not own (`~/.claude/settings.json`, `~/.codex/hooks.json`), which other tools also write hooks into. Its guarantees are the contract, and `HookInstallerTests` / `CodexHookInstallerTests` pin them:
+`HookInstaller` edits files it does not own (`~/.claude/settings.json`, `~/.codex/hooks.json`, `~/.cursor/hooks.json`, `~/.gemini/config/hooks.json`), which other tools also write hooks into. `HookTarget.Format` says each file's shape: matcher groups (Claude Code, Codex), a flat list with a root `version` (Cursor), or one top-level named group that WhoIsWorking owns whole (Antigravity, which also passes the event name as a second script argument). Its guarantees are the contract, and `HookInstallerTests`, `CodexHookInstallerTests`, `CursorHookInstallerTests` and `AntigravityHookInstallerTests` pin them. OpenCode has a plugin file instead: `PluginInstaller` owns `~/.config/opencode/plugins/whoisworking.js` and only that file (`OpenCodePluginInstallerTests`). The guarantees:
 
 - Other tools' entries are never changed or reordered. This is why the installer uses `OrderedJSON.swift` (`JSONValue`, keeps key order and number spelling, writes like `JSON.stringify(v, null, 2)`) instead of `JSONSerialization`.
 - A timestamped backup is written beside the file before every change.
@@ -100,7 +100,7 @@ Fixtures are plain files under `Tests/Fixtures`, located through `#filePath` (`f
 
 ## Specs
 
-`docs/specs/` states what WhoIsWorking does as numbered requirements (`RED-03`), each naming the tests that prove it. `docs/specs/README.md` has the index and the format. Specs 01–08 describe what is built; 10–13 are drafts for the next work (design for Settings, empty state and pill; Cursor; OpenCode; distribution).
+`docs/specs/` states what WhoIsWorking does as numbered requirements (`RED-03`), each naming the tests that prove it. `docs/specs/README.md` has the index and the format. Specs 01–08 and 12 (OpenCode) describe what is built. 11 (Cursor) and 14 (Antigravity) are built but stay drafts until a live capture; 10 and 13 are drafts for the next work (design for Settings, empty state and pill; distribution).
 
 The order of work is spec, then failing test, then code:
 

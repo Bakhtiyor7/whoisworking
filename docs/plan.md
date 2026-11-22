@@ -29,7 +29,7 @@ A small macOS app that lives in the MacBook notch. It is invisible while nothing
 | Cursor | `~/.cursor/hooks.json` | No dedicated event. Infer from `beforeShellExecution` / `beforeMCPExecution` with no follow-up | `conversation_id`, `workspace_roots` |
 | OpenCode | JS plugin in `~/.config/opencode/plugins/` | Permission `evaluate` hook (names unconfirmed) | `sessionID`; folder only partly |
 
-The current plans for the next local integrations are in the [Cursor](specs/11-cursor-adapter.md), [OpenCode](specs/12-opencode-adapter.md), and [Antigravity](specs/14-antigravity-adapter.md) drafts. The table above records the initial research.
+Cursor, OpenCode and Antigravity are now built: see the [Cursor](specs/11-cursor-adapter.md), [OpenCode](specs/12-opencode-adapter.md) and [Antigravity](specs/14-antigravity-adapter.md) specs, and [agent-integrations-plan.md](agent-integrations-plan.md) for what was checked. The table above records the initial research; some of it turned out wrong (Cursor's `beforeShellExecution` is a permission hook WhoIsWorking must not register, and OpenCode's permission events are `permission.asked` / `permission.replied`).
 
 ### Existing apps
 

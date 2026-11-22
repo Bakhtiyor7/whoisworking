@@ -69,9 +69,9 @@ Tests: `ClaudeCodeRealPayloadTests/mapsEveryCapturedEvent`, `ClaudeCodeRealPaylo
 
 ### CCA-10 Wire format
 
-One message per socket connection: a header line `whoisworking1 <agent> ppid=<pid>` followed by the agent's raw hook JSON. A bare JSON object with no header is treated as Claude Code. Empty input and garbage are rejected. Messages go to the adapter of the agent named in the header; unknown agents are ignored.
+One message per socket connection: a header line `whoisworking1 <agent> ppid=<pid>` followed by the agent's raw hook JSON. A bare JSON object with no header is treated as Claude Code. Empty input and garbage are rejected. Messages go to the adapter of the agent named in the header; unknown agents are ignored. One exception: a `claude-code` message whose JSON has `cursor_version` was sent by Cursor running Claude Code hooks, and goes to the Cursor adapter (CUR-03).
 
-Tests: `HookMessageTests/headerNamesTheAgent`, `HookMessageTests/bareJSONIsTreatedAsClaudeCode`, `HookMessageTests/emptyOrGarbageIsRejected`, `HookMessageTests/routesClaudeCodeMessagesToTheAdapter`, `HookMessageTests/unknownAgentsAreIgnored`
+Tests: `HookMessageTests/headerNamesTheAgent`, `HookMessageTests/bareJSONIsTreatedAsClaudeCode`, `HookMessageTests/emptyOrGarbageIsRejected`, `HookMessageTests/routesClaudeCodeMessagesToTheAdapter`, `HookMessageTests/unknownAgentsAreIgnored`, `CursorRoutingTests/cursorPayloadsUnderTheClaudeHeaderNeverBecomeClaudeSessions`
 
 ### CCA-11 Session files
 
