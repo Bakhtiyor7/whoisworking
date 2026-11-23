@@ -19,11 +19,12 @@ scripts/check-specs.sh                                             # specs and t
 scripts/bundle.sh                                                  # release build -> build/WhoIsWorking.app (ad-hoc signed)
 scripts/bundle.sh debug                                            # same, debug configuration
 scripts/update.sh [--skip-tests] [--install]                       # test, build, stop the running WhoIsWorking, rebundle, reopen (--install: into /Applications)
-scripts/release.sh X.Y.Z --dry-run                                 # release build + DMG + checks in build/release/X.Y.Z, publishes nothing
+scripts/release.sh X.Y.Z --dry-run                                 # release build + DMG + install.sh + checks in build/release/X.Y.Z-dry-run, publishes nothing
+scripts/render-install.sh X.Y.Z <dmg sha256> 15.0                  # prints the install script for a release (template: scripts/install.sh)
 open build/WhoIsWorking.app
 ```
 
-`scripts/release.sh X.Y.Z` without `--dry-run` publishes to the public `Bakhtiyor7/whoisworking-releases` repo and pushes to `origin`; run it only when the user asks, and it asks for "yes" itself. Releases are described in spec 13 and `docs/release-plan.md`; the public repo's README source is `docs/releases-repo/README.md`.
+`scripts/release.sh X.Y.Z` without `--dry-run` publishes to the public `Bakhtiyor7/whoisworking-releases` repo and pushes to `origin`; run it only when the user asks, and it asks for "yes" itself. Releases are described in spec 13 and `docs/release-plan.md`, the install command (`install.sh`, a second release asset) in spec 20; the public repo's README source is `docs/releases-repo/README.md`.
 
 `--filter` matches on the Swift type and function names, not the `@Suite("…")` display names. It is a substring match, so `ReducerTests` also runs `CodexReducerTests`.
 

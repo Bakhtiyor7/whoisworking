@@ -73,17 +73,25 @@ scripts/bundle.sh release
 APP="$BUILT"
 if [ "$INSTALL" -eq 1 ]; then
     echo "==> Installing to $INSTALLED"
-    # Copy beside the old one first, then swap, so a failed copy leaves the old app.
-    STAGING="/Applications/.WhoIsWorking.app.new"
-    rm -rf "$STAGING"
-    ditto "$BUILT" "$STAGING"
-    rm -rf "$INSTALLED"
-    mv "$STAGING" "$INSTALLED"
+    # Installed the way a user installs it: the build goes into a disk image, and the public
+    # install script (scripts/install.sh, spec 20), rendered for that image, puts it in
+    # /Applications and opens it. One code path means one lock and one staging and recovery
+    # logic, and every local install exercises the script that gets published.
+    case "$PWD" in *[" '%#?@"]*) echo "the checkout path holds a character a file URL cannot carry as it is" >&2; exit 1 ;; esac
+    LOCAL="build/install"
+    mkdir -p "$LOCAL"
+    scripts/make-dmg.sh "$BUILT" "$LOCAL/WhoIsWorking.dmg"
+    scripts/render-install.sh \
+        "$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' "$BUILT/Contents/Info.plist")" \
+        "$(shasum -a 256 "$LOCAL/WhoIsWorking.dmg" | cut -d' ' -f1)" \
+        "$(/usr/libexec/PlistBuddy -c 'Print LSMinimumSystemVersion' "$BUILT/Contents/Info.plist")" \
+        "DMG_URL=file://$PWD/$LOCAL/WhoIsWorking.dmg" PROTO==file > "$LOCAL/install.sh"
+    /bin/sh "$LOCAL/install.sh"
     APP="$INSTALLED"
+else
+    echo "==> Opening WhoIsWorking"
+    open "$APP"
 fi
-
-echo "==> Opening WhoIsWorking"
-open "$APP"
 
 VERSION="$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' "$APP/Contents/Info.plist")"
 echo "WhoIsWorking $VERSION is running from $APP ($(git rev-parse --short HEAD 2>/dev/null || echo 'no commit')$( [ -n "$(git status --porcelain 2>/dev/null)" ] && echo ', with uncommitted changes'))"

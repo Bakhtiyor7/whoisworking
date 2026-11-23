@@ -2,7 +2,7 @@
 
 Status: draft
 Source: `docs/plan.md` §4 phase 5 and §6 decision 2; design and order of work in `docs/release-plan.md`
-Code: `Sources/AgentCore/UpdateCheck.swift`, `Sources/AgentCore/RunLocation.swift`, `Sources/WhoIsWorking/Settings.swift`, `scripts/bundle.sh`, `scripts/make-dmg.sh`, `scripts/release.sh`
+Code: `Sources/AgentCore/UpdateCheck.swift`, `Sources/AgentCore/RunLocation.swift`, `Sources/WhoIsWorking/Settings.swift`, `scripts/bundle.sh`, `scripts/make-dmg.sh`, `scripts/release.sh`. The install command is in [20 Install command](20-install-command.md)
 
 ## Purpose
 
@@ -14,7 +14,7 @@ The source stays in the private repo `Bakhtiyor7/agent-sessions-macos`. Builds a
 
 ### DST-01 Stage 5a: DMG on the public releases repo
 
-`scripts/release.sh X.Y.Z` builds `WhoIsWorking.app` (release configuration, Apple silicon, ad-hoc signed), puts it in `WhoIsWorking-X.Y.Z.dmg` with an Applications link, and publishes it as release `vX.Y.Z` of `Bakhtiyor7/whoisworking-releases`. The release has exactly one asset, the DMG.
+`scripts/release.sh X.Y.Z` builds `WhoIsWorking.app` (release configuration, Apple silicon, ad-hoc signed), puts it in `WhoIsWorking-X.Y.Z.dmg` with an Applications link, and publishes it as release `vX.Y.Z` of `Bakhtiyor7/whoisworking-releases`. Release 0.1.0 has exactly one asset, the DMG. Later releases have exactly two: the DMG and the `install.sh` rendered for it ([20 Install command](20-install-command.md), DST-13).
 
 Verified by: `scripts/release.sh --dry-run`, then the first published release downloaded in a browser and installed into Applications
 
@@ -61,16 +61,16 @@ Verified by: public README
 
 `scripts/release.sh X.Y.Z [--dry-run]`:
 
-- refuses unless `X.Y.Z` equals the version in `Info.plist`, the tree is clean, the branch is `master`, `docs/release-notes/X.Y.Z.md` exists, and both the version and the build number are greater than those of the latest published release (when there is one; the build number is read from `Info.plist` at that release's private tag). A dry run only warns about a dirty tree, another branch or missing notes, and makes no network request;
+- refuses unless `X.Y.Z` equals the version in `Info.plist`, the tree is clean, the branch is `master`, `docs/release-notes/X.Y.Z.md` exists, and both the version and the build number are greater than those of the latest published release (when there is one; the build number is read from `Info.plist` at that release's private tag). A dry run only warns about a dirty tree, another branch, missing notes or a tag `vX.Y.Z` that already sits on another commit (so it can run between releases), and makes no network request;
 - runs `swift test` and `scripts/check-specs.sh`;
-- builds into `build/release/X.Y.Z/`, never touching `build/WhoIsWorking.app`, and keeps the result so a retry publishes the same bytes;
-- checks the DMG (DST-11);
+- builds into `build/release/X.Y.Z/` (a dry run: `build/release/X.Y.Z-dry-run/`), never touching `build/WhoIsWorking.app`, and keeps the result so a retry publishes the same bytes;
+- checks the DMG (DST-11), then renders `install.sh` and runs it against that DMG (DST-20);
 - with `--dry-run`, stops there;
-- otherwise prints what it will publish and asks for confirmation, then creates a draft release with the one DMG, pushes `master` and tag `vX.Y.Z` to the private repo only (`origin`; the public repo is never a git remote), publishes the draft as latest, and checks anonymously that `/releases/latest` returns the new tag.
+- otherwise prints what it will publish and asks for confirmation, then creates a draft release with the DMG and `install.sh`, pushes `master` and tag `vX.Y.Z` to the private repo only (`origin`; the public repo is never a git remote), publishes the draft as latest, and checks anonymously that `/releases/latest` returns the new tag and serves both files.
 
-A re-run after a failure continues from the existing draft or tag when they match. Release notes come from a hand-written `docs/release-notes/X.Y.Z.md`.
+A re-run after a failure continues from the existing draft or tag when they match; DST-20 has the rules for a draft that lacks a file and for a release that is already published. Release notes come from a hand-written `docs/release-notes/X.Y.Z.md`.
 
-Verified by: `scripts/release.sh 0.1.0 --dry-run`, then the 0.1.0 release
+Verified by: `scripts/release.sh 0.1.0 --dry-run`, then the 0.1.0 release. The two-asset steps are first exercised by 0.1.1
 
 ### DST-10 Run location
 

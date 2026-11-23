@@ -21,6 +21,7 @@ What WhoIsWorking does, written as numbered requirements. Tests prove them; `scr
 | [14 Antigravity adapter](14-antigravity-adapter.md) | ANT | draft |
 | [15 Click to session](15-click-to-session.md) | NAV | draft |
 | [16 Signing and CI release](16-signing-and-ci.md) | DST | draft |
+| [20 Install command](20-install-command.md) | DST | draft |
 
 ## Not in v1
 

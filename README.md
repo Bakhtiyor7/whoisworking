@@ -55,17 +55,17 @@ WhoIsWorking bundles the full-color [Claude Code](https://github.com/lobehub/lob
 
 ## Releases
 
-Builds for other people are published in the public [whoisworking-releases](https://github.com/Bakhtiyor7/whoisworking-releases) repo as a DMG; this repo stays private. Bump the version in `Resources/Info.plist` and write `docs/release-notes/X.Y.Z.md` in a commit, then:
+Builds for other people are published in the public [whoisworking-releases](https://github.com/Bakhtiyor7/whoisworking-releases) repo as a DMG and, from 0.1.1, an `install.sh` for the install command ([spec 20](docs/specs/20-install-command.md)); this repo stays private. Bump the version in `Resources/Info.plist` and write `docs/release-notes/X.Y.Z.md` in a commit, then:
 
 ```bash
-scripts/release.sh 0.1.0 --dry-run
+scripts/release.sh X.Y.Z --dry-run
 ```
 
 ```bash
-scripts/release.sh 0.1.0
+scripts/release.sh X.Y.Z
 ```
 
-The dry run tests, builds into `build/release/0.1.0/` and checks the DMG without publishing anything. The real run shows what it will publish and asks for "yes", then creates the release, pushes `master` and the tag to this repo, and checks the public download. The app's Check for Updates button reads the latest release of that repo. Details: [spec 13](docs/specs/13-distribution.md).
+The dry run tests, builds into `build/release/X.Y.Z-dry-run/`, checks the DMG, and renders the install script and runs it against that DMG, without publishing anything. The real run shows what it will publish and asks for "yes", then creates the release, pushes `master` and the tag to this repo, and checks the public download. The app's Check for Updates button reads the latest release of that repo. Details: [spec 13](docs/specs/13-distribution.md).
 
 ## Switching from Perch
 
