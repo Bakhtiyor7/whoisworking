@@ -21,7 +21,18 @@ What WhoIsWorking does, written as numbered requirements. Tests prove them; `scr
 | [14 Antigravity adapter](14-antigravity-adapter.md) | ANT | draft |
 | [15 Click to session](15-click-to-session.md) | NAV | draft |
 | [16 Signing and CI release](16-signing-and-ci.md) | DST | draft |
+| [17 Appearance settings](17-appearance-settings.md) | APP | draft |
+| [18 Winter theme](18-winter-theme.md) | WTR | draft |
+| [19 Desktop pet](19-desktop-pet.md) | PET | draft |
 | [20 Install command](20-install-command.md) | DST | draft |
+
+## Tracking feature plans
+
+Use this index to find feature plans. Add a numbered draft for an idea with a distinct user-facing outcome. Add smaller ideas to the relevant draft under **Optional follow-ups** or **Open questions**. Record the intended behavior and any dependencies in the draft, then update it as decisions are made.
+
+Before implementation, settle the open questions that affect the first release of the feature. Give optional work its own requirements when it is in scope. Once the requirements have verification and the feature is implemented, update the status here and in the spec, and describe the shipped behavior in the user-facing README.
+
+For the appearance drafts, the proposed order is to add theme selection and persistence first, then use those settings to offer Winter. Custom backgrounds and fonts can follow. Agent icons are optional. The desktop pet can be planned independently.
 
 ## Not in v1
 
