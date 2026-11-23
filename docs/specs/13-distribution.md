@@ -70,7 +70,7 @@ Verified by: public README
 
 A re-run after a failure continues from the existing draft or tag when they match; DST-20 has the rules for a draft that lacks a file and for a release that is already published. Release notes come from a hand-written `docs/release-notes/X.Y.Z.md`.
 
-Verified by: `scripts/release.sh 0.1.0 --dry-run`, then the 0.1.0 release. The two-asset steps are first exercised by 0.1.1
+Verified by: `scripts/release.sh 0.1.0 --dry-run`, then the 0.1.0 release; the two-asset steps by the 0.1.1 release on 2026-11-24
 
 ### DST-10 Run location
 

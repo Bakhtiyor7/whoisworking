@@ -49,7 +49,7 @@ The published script requests one URL, built from constants and its pinned versi
 What the checks prove, to be stated in the script's header and the README: the checksum catches a wrong, truncated or corrupted DMG once the script is trusted. It does not protect against a compromised releases repo, where the script could be replaced too. The ad-hoc signature check proves the bundle is intact, not who made it.
 
 Tests: `InstallScriptTests/thePublishedRenderingIsPinnedToItsRelease`, `InstallScriptTests/aWrongChecksumRefusesAndKeepsTheOldCopy`, `InstallScriptTests/aMissingDownloadIsReportedAndChangesNothing`, `InstallScriptTests/noConnectionIsReportedAsNoNetwork`
-Verified by: the 404, short-transfer, disk-full and time-out messages are not tested (they need an HTTPS server); the first published `install.sh` downloading its DMG through GitHub's redirect
+Verified by: the 404, short-transfer, disk-full and time-out messages are not tested (they need an HTTPS server); still open: the published 0.1.1 `install.sh` downloading its DMG through GitHub's redirect (nobody has run the published command yet)
 
 ### DST-14 Preconditions
 
@@ -120,7 +120,7 @@ Verified by: still open. Ctrl-C during a download and during the copy; the next 
 - It uses only `/bin/sh` and tools that ship with macOS, called by absolute path (`/usr/bin/curl`, `/usr/bin/shasum`, `/usr/bin/hdiutil`, `/usr/bin/ditto`, `/usr/bin/codesign`, `/usr/bin/open` and the like).
 
 Tests: `InstallScriptTests/thePublishedRenderingIsPinnedToItsRelease`, `InstallScriptTests/theRendererRefusesValuesItCannotQuote`, `InstallScriptTests/aCutOffScriptDoesNothing`, `InstallScriptTests/environmentVariablesDoNotChangeWhatItDoes`
-Verified by: `scripts/release.sh 0.1.0 --dry-run` on 2026-11-23 for the checks on the published rendering
+Verified by: `scripts/release.sh 0.1.0 --dry-run` on 2026-11-23 and release 0.1.1 on 2026-11-24 for the checks on the published rendering
 
 ### DST-20 Release checks cover the script
 
@@ -136,7 +136,7 @@ A real run:
 - after publishing, downloads both assets anonymously through the `latest/download` URLs and compares their digests with the local files, with bounded retries;
 - never reuses the output of a dry run, which may come from a tree with uncommitted changes: a dry run builds into `build/release/X.Y.Z-dry-run/`, a real run into `build/release/X.Y.Z/`, and neither touches the other's folder. Before this, a dry run stamped its output with `HEAD`, so a later real run at the same commit would have published it.
 
-Verified by: `scripts/release.sh 0.1.0 --dry-run` on 2026-11-23 for the rendering and the install run. Still open: the draft, re-run and anonymous checks, which only a real release exercises (0.1.1)
+Verified by: `scripts/release.sh 0.1.0 --dry-run` on 2026-11-23 for the rendering and the install run; release 0.1.1 on 2026-11-24 for a fresh draft with both assets, the digest check on the draft, publishing, and the anonymous check (the public API then listed `v0.1.1` as latest with both assets, their digests equal to the local files). Still open: the re-run paths (a draft that lacks a file, a release that is already published), which that release did not need
 
 ### DST-21 Public README and release notes
 
