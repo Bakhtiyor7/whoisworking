@@ -38,7 +38,7 @@ The script is downloaded completely before it runs, over HTTPS only (also after 
 Given a Mac that meets DST-14 and has no WhoIsWorking installed, when the user runs the command, then `/Applications/WhoIsWorking.app` holds that release and the script asked for no password. The script then asks macOS to open the app and says so; if that fails, it says the app is installed and that opening failed.
 
 Tests: `InstallScriptTests/aFreshInstallPutsTheReleaseInPlaceAndLeavesNothingBehind`
-Verified by: still open. A tester on a Mac that never had the app runs the pasted command from the first release that ships `install.sh`, on macOS 15 and on macOS 26, and reports which dialogs appeared
+Verified by: the published 0.1.1 command run on the development Mac (macOS 27.2.1) on 2026-11-24, from an agent's shell and not pasted into Terminal: 0.1.0 was running from Applications, and 1.2 s later 0.1.1 build 2 was installed with a valid signature and no quarantine attribute, running as a new process, with no password asked. This Mac already had the app, so it says nothing about a first install. Still open: a tester on a Mac that never had the app runs the pasted command on macOS 15 and on macOS 26 and reports which dialogs appeared
 
 ### DST-13 The script is a release asset pinned to its release
 
@@ -49,7 +49,7 @@ The published script requests one URL, built from constants and its pinned versi
 What the checks prove, to be stated in the script's header and the README: the checksum catches a wrong, truncated or corrupted DMG once the script is trusted. It does not protect against a compromised releases repo, where the script could be replaced too. The ad-hoc signature check proves the bundle is intact, not who made it.
 
 Tests: `InstallScriptTests/thePublishedRenderingIsPinnedToItsRelease`, `InstallScriptTests/aWrongChecksumRefusesAndKeepsTheOldCopy`, `InstallScriptTests/aMissingDownloadIsReportedAndChangesNothing`, `InstallScriptTests/noConnectionIsReportedAsNoNetwork`
-Verified by: the 404, short-transfer, disk-full and time-out messages are not tested (they need an HTTPS server); still open: the published 0.1.1 `install.sh` downloading its DMG through GitHub's redirect (nobody has run the published command yet)
+Verified by: the 404, short-transfer, disk-full and time-out messages are not tested (they need an HTTPS server); the published 0.1.1 `install.sh`, fetched with the command from the release notes and run on the development Mac (macOS 27.2.1) on 2026-11-24, downloaded its DMG through GitHub's redirect and the checksum matched
 
 ### DST-14 Preconditions
 
@@ -110,7 +110,7 @@ The installer writes only to `/Applications/WhoIsWorking.app`, its lock and stag
 The installer never reads or writes agent hook files or `~/Library/Application Support/WhoIsWorking/`. The app it opens may refresh the hook script as it does at every launch (UI-14), so installed hooks keep working after an install over an older version (DST-05).
 
 Tests: `InstallScriptTests/aFreshInstallPutsTheReleaseInPlaceAndLeavesNothingBehind`, `InstallScriptTests/aWrongChecksumRefusesAndKeepsTheOldCopy`, `InstallScriptTests/anAppWithAnotherBundleIdIsRefusedAndTheOldCopyKept`
-Verified by: still open. Ctrl-C during a download and during the copy; the next release installed with the command over this one, with hooks still delivering events
+Verified by: after the 0.1.1 run above, `/Applications` held only `WhoIsWorking.app`, no temporary folder or mounted image was left, and the hook script in Application Support was untouched. Still open: Ctrl-C during a download and during the copy; hooks seen delivering events after an install over an older version
 
 ### DST-19 The published script has no switches
 
