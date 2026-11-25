@@ -15,38 +15,52 @@ public struct SetupPrompt: Equatable, Sendable {
         /// What is left for the user after an install made from the card.
         public var nextStep: String?
 
+        /// "Skip" is offered on every row that is not installed.
+        public var canSkip: Bool { status != .installed }
+
         public var id: AgentKind { agent }
     }
 
-    /// The hint beside the notch: on while no agent is connected.
+    /// The hint beside the notch: on while no agent is connected and the card still has one to offer.
     public var showsWings = false
     /// Empty when there is no card.
     public var rows: [Row] = []
     public var showsCard: Bool { !rows.isEmpty }
-    /// The card's close button: "Done" once every row is installed, "Don't show again" on the second offer.
-    public var closeTitle = "Not now"
+    /// Skipped agents that would otherwise be in the card, in the fixed order, so each can be undone.
+    public var skipped: [AgentKind] = []
+    /// The card's close button: "Done" once every row is installed. Either way it hides setup for a week.
+    public var closeTitle = "Later"
     /// What the close button will do, for VoiceOver.
     public var closeHint = "Hides setup for a week"
 
     /// - Parameters:
-    ///   - dismissal: how often and when the user closed setup; `now` decides whether it is still hidden.
+    ///   - dismissal: when the user last put setup off; `now` decides whether it is still hidden.
     ///   - found: agents whose configuration folder exists on this Mac (`agentsFound`).
     ///   - statuses: install status per agent; an agent with no entry could not be read.
     ///   - installedNow: agents installed from the card since the app started.
+    ///   - skipped: agents the user said never to offer.
     public init(
         ownsSocket: Bool, dismissal: SetupDismissal, now: Date, found: Set<AgentKind>,
-        statuses: [AgentKind: HookInstallStatus], installedNow: Set<AgentKind> = []
+        statuses: [AgentKind: HookInstallStatus], installedNow: Set<AgentKind> = [], skipped: Set<AgentKind> = []
     ) {
         // A second copy cannot receive events, so it offers nothing and saves nothing (UI-15).
         guard ownsSocket, !dismissal.isHidden(at: now) else { return }
         func connected(_ agent: AgentKind) -> Bool { statuses[agent] == .installed || statuses[agent] == .partial }
-        showsWings = !AgentKind.allCases.contains(where: connected)
+        // A skip holds until it is undone, or the hooks get installed anyway (from Settings).
+        func isSkipped(_ agent: AgentKind) -> Bool {
+            skipped.contains(agent) && statuses[agent] != .installed && !installedNow.contains(agent)
+        }
 
-        var listed = AgentKind.allCases.filter { found.contains($0) || connected($0) || installedNow.contains($0) }
-        if listed.isEmpty { listed = [.claudeCode, .codex] }
+        var candidates = AgentKind.allCases.filter { found.contains($0) || connected($0) || installedNow.contains($0) }
+        if candidates.isEmpty { candidates = [.claudeCode, .codex] }
+        let listed = candidates.filter { !isSkipped($0) }
+        let offers = listed.contains { statuses[$0] != .installed }
+        // Skipping every agent is a clear no, also when none is connected.
+        showsWings = offers && !AgentKind.allCases.contains(where: connected)
         // Nothing to say when every listed agent was already installed before this launch.
-        guard installedNow.isEmpty == false || listed.contains(where: { statuses[$0] != .installed }) else { return }
+        guard offers || !installedNow.isEmpty else { return }
 
+        self.skipped = candidates.filter(isSkipped)
         rows = listed.map { agent in
             switch statuses[agent] {
             case .installed:
@@ -60,10 +74,7 @@ public struct SetupPrompt: Equatable, Sendable {
                 Row(agent: agent, status: nil, detail: "Could not read its file. See Settings.", action: nil, nextStep: nil)
             }
         }
-        // The next close is the last one when setup was closed once before.
-        let last = dismissal.count >= 1
-        closeTitle = rows.allSatisfy { $0.status == .installed } ? "Done" : (last ? "Don't show again" : "Not now")
-        closeHint = last ? "Hides setup for good. Settings keeps every agent." : "Hides setup for a week"
+        closeTitle = rows.allSatisfy { $0.status == .installed } ? "Done" : "Later"
     }
 
     /// File status cannot show that events arrive, so each agent gets the step that makes them arrive.
@@ -132,27 +143,24 @@ public struct SetupPrompt: Equatable, Sendable {
     }
 }
 
-/// How often and when the user closed setup (UI-16): the first close hides it for a week, the
-/// second for good.
+/// When the user last put setup off with "Later" (UI-16). It hides setup for a week, every time;
+/// the permanent no is Skip, per agent.
 public struct SetupDismissal: Equatable, Sendable {
     public static let snooze: TimeInterval = 7 * 24 * 3600
 
-    public var count: Int
     public var lastAt: Date?
 
-    public init(count: Int = 0, lastAt: Date? = nil) {
-        self.count = count
+    public init(lastAt: Date? = nil) {
         self.lastAt = lastAt
     }
 
     public func isHidden(at now: Date) -> Bool {
-        if count >= 2 { return true }
-        guard count == 1, let lastAt else { return false }
+        guard let lastAt else { return false }
         return now < lastAt.addingTimeInterval(Self.snooze)
     }
 
     public func closed(at now: Date) -> SetupDismissal {
-        SetupDismissal(count: count + 1, lastAt: now)
+        SetupDismissal(lastAt: now)
     }
 }
 

@@ -47,7 +47,7 @@ The `WhoIsWorking` target has no tests. Verify UI and end-to-end changes with th
 | `WHOISWORKING_FORCE=expanded` | Keeps the panel open |
 | `WHOISWORKING_NO_NOTCH=1` | Uses the no-notch pill layout |
 | `WHOISWORKING_OPEN_SETTINGS=1` | Opens Settings at launch |
-| `WHOISWORKING_SETUP_PREVIEW=confirm:codex` | Shows the setup card with that agent's confirmation open (`installed:codex`: as if just installed from the card). The card only shows in a copy that owns the socket, so use a throwaway home (`CFFIXED_USER_HOME`, a short path) |
+| `WHOISWORKING_SETUP_PREVIEW=confirm:codex` | Shows the setup card with that agent's confirmation open (`installed:codex`: as if just installed from the card; `skipped:cursor`: with that agent skipped). A preview's buttons write nothing. The card only shows in a copy that owns the socket, so use a throwaway home (`CFFIXED_USER_HOME`, a short path) |
 | `WHOISWORKING_LOG_EVENTS=1` | Saves every raw hook payload to `~/Library/Application Support/WhoIsWorking/event-log/` |
 | `WHOISWORKING_CLAUDE_SESSIONS=/dir` | Reads Claude session files from another folder (an empty one shows the empty state) |
 | `WHOISWORKING_SOCKET=/path` | Read by the hook script only: sends events to another socket |

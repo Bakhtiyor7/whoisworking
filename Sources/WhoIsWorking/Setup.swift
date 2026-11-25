@@ -4,7 +4,7 @@ import Combine
 import SwiftUI
 
 /// Feeds the setup hint and the setup card (UI-16, UI-17): reads the installers and the
-/// "Not now" preference, and lets `SetupPrompt` in AgentCore decide what is shown.
+/// "Later" and "Skip" preferences, and lets `SetupPrompt` in AgentCore decide what is shown.
 @MainActor
 final class SetupModel: ObservableObject {
     @Published private(set) var prompt = SetupPrompt(
@@ -26,15 +26,22 @@ final class SetupModel: ObservableObject {
     private var timer: Timer?
     /// A snapshot preview shows card states; its buttons write nothing.
     private let isPreview: Bool
-    private static let dismissCountKey = "setupDismissCount"
     private static let dismissedAtKey = "setupDismissedAt"
+    private static let skippedKey = "setupSkippedAgents"
+    /// Skips shown by a snapshot preview; a preview never reads or writes the saved ones.
+    private var previewSkipped = Set<AgentKind>()
+
+    /// Agents the user said never to offer, from the preferences.
+    private var skippedAgents: Set<AgentKind> {
+        if isPreview { return previewSkipped }
+        let saved = UserDefaults.standard.stringArray(forKey: Self.skippedKey) ?? []
+        return Set(saved.compactMap(AgentKind.init(rawValue:)))
+    }
 
     /// How often and when the user closed setup, from the preferences.
     private var dismissal: SetupDismissal {
         let defaults = UserDefaults.standard
-        return SetupDismissal(
-            count: defaults.integer(forKey: Self.dismissCountKey),
-            lastAt: defaults.object(forKey: Self.dismissedAtKey) as? Date)
+        return SetupDismissal(lastAt: defaults.object(forKey: Self.dismissedAtKey) as? Date)
     }
     /// How often the statuses are read again while the app runs, so hooks removed elsewhere bring the hint back.
     static let rereadInterval: TimeInterval = 15
@@ -50,6 +57,7 @@ final class SetupModel: ObservableObject {
             if parts.count == 2, let agent = AgentKind(rawValue: parts[1]) {
                 if parts[0] == "confirm" { confirming = agent }
                 if parts[0] == "installed" { installedNow.insert(agent) }
+                if parts[0] == "skipped" { previewSkipped.insert(agent) }
             }
         }
         // Installs and uninstalls made in Settings change the hint too.
@@ -83,7 +91,8 @@ final class SetupModel: ObservableObject {
             now: Date(),
             found: SetupPrompt.agentsFound(home: home),
             statuses: statuses,
-            installedNow: installedNow)
+            installedNow: installedNow,
+            skipped: skippedAgents)
         if next != prompt { prompt = next }
         if let open = confirming, !next.rows.contains(where: { $0.agent == open && $0.action != nil }) { confirming = nil }
     }
@@ -134,14 +143,34 @@ final class SetupModel: ObservableObject {
         recompute()
     }
 
-    /// The card's close button: the hint and the card are off for a week the first time, for good the second.
+    /// "Later" or "Done": the hint and the card are off for a week, every time.
     func dismiss() {
         guard !isPreview, prompt.showsCard else { return }
-        let next = dismissal.closed(at: Date())
-        UserDefaults.standard.set(next.count, forKey: Self.dismissCountKey)
-        UserDefaults.standard.set(next.lastAt, forKey: Self.dismissedAtKey)
+        UserDefaults.standard.set(dismissal.closed(at: Date()).lastAt, forKey: Self.dismissedAtKey)
         confirming = nil
         recompute()
+    }
+
+    /// "Skip" on a row: that agent is not offered again. Writes a preference and nothing else.
+    func skip(_ agent: AgentKind) {
+        guard !isPreview, prompt.rows.contains(where: { $0.agent == agent && $0.canSkip }) else { return }
+        saveSkipped(skippedAgents.union([agent]))
+        if confirming == agent { confirming = nil }
+        messages[agent] = nil
+        recompute()
+    }
+
+    /// "Undo" beside a skipped agent: it is offered again.
+    func undoSkip(_ agent: AgentKind) {
+        guard !isPreview, prompt.skipped.contains(agent) else { return }
+        saveSkipped(skippedAgents.subtracting([agent]))
+        recompute()
+    }
+
+    private func saveSkipped(_ agents: Set<AgentKind>) {
+        // Stored in the fixed agent order, so the saved value does not depend on the order of the clicks.
+        let ordered = AgentKind.allCases.filter(agents.contains).map(\.rawValue)
+        UserDefaults.standard.set(ordered, forKey: Self.skippedKey)
     }
 }
 
@@ -184,6 +213,9 @@ struct SetupCard: View {
                 VStack(spacing: 2) {
                     ForEach(setup.prompt.rows) { row in SetupRow(row: row, setup: setup) }
                 }
+                if !setup.prompt.skipped.isEmpty {
+                    SkippedLine(agents: setup.prompt.skipped, undo: setup.undoSkip)
+                }
                 Text("All agents, and uninstall, are in Settings.")
                     .font(.system(size: 11)).foregroundStyle(Palette.dim)
             }
@@ -191,6 +223,30 @@ struct SetupCard: View {
             .background(Palette.card, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
         }
         .accessibilityElement(children: .contain)
+    }
+}
+
+/// "Skipped: Cursor Undo · Antigravity Undo": the agents the user said never to offer, each with a way back.
+struct SkippedLine: View {
+    let agents: [AgentKind]
+    let undo: (AgentKind) -> Void
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Text("Skipped:").foregroundStyle(Palette.dim)
+            ForEach(Array(agents.enumerated()), id: \.element) { index, agent in
+                if index > 0 { Text("·").foregroundStyle(Palette.dim) }
+                Text(agent.displayName).foregroundStyle(Palette.dim)
+                Button("Undo") { undo(agent) }
+                    .buttonStyle(.plain)
+                    .underline()
+                    .frame(height: 24)
+                    .contentShape(Rectangle())
+                    .accessibilityLabel("Undo skipping \(agent.displayName)")
+            }
+            Spacer(minLength: 0)
+        }
+        .font(.system(size: 12))
     }
 }
 
@@ -215,6 +271,17 @@ struct SetupRow: View {
                     .lineLimit(1)
                     .truncationMode(.middle)
                 Spacer(minLength: 8)
+                if row.canSkip, !confirming {
+                    Button("Skip") { setup.skip(row.agent) }
+                        .buttonStyle(.plain)
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(Palette.dim)
+                        .padding(.horizontal, 6)
+                        .frame(height: 28)
+                        .contentShape(Rectangle())
+                        .accessibilityLabel("Skip \(row.agent.displayName)")
+                        .accessibilityHint("Stops offering this agent. You can undo it below, or install it in Settings.")
+                }
                 if let action = row.action, !confirming {
                     let title = action == .connect ? "Connect" : "Repair"
                     Button(title) { setup.askToInstall(row.agent) }

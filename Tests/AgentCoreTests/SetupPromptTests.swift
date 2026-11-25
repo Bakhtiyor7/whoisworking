@@ -10,13 +10,13 @@ struct SetupPromptTests {
 
     private func prompt(
         ownsSocket: Bool = true, dismissed: Bool = false, found: Set<AgentKind> = [.claudeCode, .codex],
-        _ statuses: [AgentKind: HookInstallStatus], installedNow: Set<AgentKind> = []
+        _ statuses: [AgentKind: HookInstallStatus], installedNow: Set<AgentKind> = [], skipped: Set<AgentKind> = []
     ) -> SetupPrompt {
-        // "Dismissed" here means closed for good: twice.
-        let dismissal = dismissed ? SetupDismissal(count: 2, lastAt: start) : SetupDismissal()
+        // "Dismissed" here means put off with Later a moment ago.
+        let dismissal = dismissed ? SetupDismissal(lastAt: start) : SetupDismissal()
         return SetupPrompt(
             ownsSocket: ownsSocket, dismissal: dismissal, now: start, found: found, statuses: statuses,
-            installedNow: installedNow)
+            installedNow: installedNow, skipped: skipped)
     }
 
     private let start = Date(timeIntervalSince1970: 1_800_000_000)
@@ -55,35 +55,50 @@ struct SetupPromptTests {
         #expect(prompt(nothing).showsWings)
     }
 
-    @Test func notNowHidesSetupForAWeekAndTheSecondTimeForGood() {
+    // The owner replaced the two-step "Not now" (a week, then for good) on 2026-11-26: "Later" only
+    // ever means a week, and the permanent no is Skip, per agent.
+    @Test func laterHidesSetupForAWeekEachTime() {
         func shown(_ dismissal: SetupDismissal, after: TimeInterval) -> SetupPrompt {
             SetupPrompt(
                 ownsSocket: true, dismissal: dismissal, now: start.addingTimeInterval(after),
                 found: [.claudeCode, .codex], statuses: nothing)
         }
-        // Never closed: offered, with "Not now".
         let never = SetupDismissal()
         #expect(shown(never, after: 0).showsWings)
-        #expect(shown(never, after: 0).closeTitle == "Not now")
+        #expect(shown(never, after: 0).closeTitle == "Later")
         #expect(shown(never, after: 0).closeHint == "Hides setup for a week")
 
-        // Closed once: hidden for seven days, then back once, with a button that says what it now does.
+        // Put off: hidden for seven days, then back as before.
         let once = never.closed(at: start)
         #expect(!shown(once, after: 0).showsWings)
         #expect(!shown(once, after: 7 * day - 1).showsCard)
         #expect(shown(once, after: 7 * day).showsWings)
         #expect(shown(once, after: 7 * day).showsCard)
-        #expect(shown(once, after: 7 * day).closeTitle == "Don't show again")
-        #expect(shown(once, after: 7 * day).closeHint == "Hides setup for good. Settings keeps every agent.")
+        #expect(shown(once, after: 7 * day).closeTitle == "Later")
 
-        // Closed a second time: gone for good.
+        // Put off again: another week, never for good.
         let twice = once.closed(at: start.addingTimeInterval(8 * day))
         #expect(!shown(twice, after: 8 * day).showsWings)
-        #expect(!shown(twice, after: 400 * day).showsCard)
+        #expect(!shown(twice, after: 15 * day - 1).showsCard)
+        #expect(shown(twice, after: 15 * day).showsWings)
         #expect(SetupDismissal.snooze == 7 * day)
     }
 
-    @Test func hiddenSetupStaysHiddenWhateverElseChanges() {
+    @Test func skippingEveryAgentEndsTheHint() {
+        // One agent skipped: the other is still offered, so the hint stays.
+        let one = prompt(nothing, skipped: [.codex])
+        #expect(one.showsWings)
+        #expect(one.rows.map(\.agent) == [.claudeCode])
+        // Every agent found on this Mac skipped: a clear no, though none is connected.
+        let all = prompt(nothing, skipped: [.claudeCode, .codex])
+        #expect(!all.showsWings)
+        #expect(!all.showsCard)
+        // The same for the two agents offered when none is found.
+        #expect(!prompt(found: [], nothing, skipped: [.claudeCode, .codex]).showsWings)
+        #expect(prompt(found: [], nothing, skipped: [.codex]).rows.map(\.agent) == [.claudeCode])
+    }
+
+    @Test func setupPutOffStaysHiddenWhateverElseChanges() {
         let p = prompt(dismissed: true, nothing)
         #expect(!p.showsWings)
         #expect(!p.showsCard)
@@ -105,12 +120,41 @@ struct SetupPromptTests {
         let codex = p.rows[1]
         #expect(codex.detail == "~/.codex/hooks.json")
         #expect(codex.action == .connect)
-        #expect(p.closeTitle == "Not now")
+        #expect(p.closeTitle == "Later")
         // An agent that shows up later is listed the next time the card is built.
         #expect(prompt(found: [.claudeCode, .codex, .cursor, .antigravity], nothing).rows.map(\.agent)
             == [.claudeCode, .codex, .cursor, .antigravity])
         // Hooks that are installed count as found, whatever the folders say.
         #expect(prompt(found: [.claudeCode], with([.openCode: .installed])).rows.map(\.agent) == [.claudeCode, .openCode])
+    }
+
+    @Test func aSkippedAgentLeavesTheListAndCanBeBroughtBack() {
+        let found: Set<AgentKind> = [.claudeCode, .codex, .cursor, .antigravity]
+        let p = prompt(found: found, nothing, skipped: [.cursor, .antigravity])
+        #expect(p.rows.map(\.agent) == [.claudeCode, .codex])
+        // The skipped ones are named, in the fixed order, so each can be undone.
+        #expect(p.skipped == [.cursor, .antigravity])
+        // Every row that is not installed can be skipped; an installed one cannot.
+        let mixed = prompt(found: found, with([.claudeCode: .installed, .codex: .partial]))
+        #expect(mixed.rows.map(\.canSkip) == [false, true, true, true])
+        // A skip for an agent that is not on this Mac is not listed: there is nothing to bring back.
+        #expect(prompt(nothing, skipped: [.openCode]).skipped.isEmpty)
+        // Undo is the same list without that agent.
+        #expect(prompt(found: found, nothing, skipped: [.antigravity]).rows.map(\.agent) == [.claudeCode, .codex, .cursor])
+    }
+
+    @Test func aSkippedAgentThatIsInstalledAnywayIsShownAsInstalled() {
+        // Installed from Settings after being skipped: it counts as connected, and is not listed as skipped.
+        let p = prompt(with([.codex: .installed]), skipped: [.codex])
+        #expect(!p.showsWings)
+        #expect(p.rows.map(\.agent) == [.claudeCode, .codex])
+        #expect(p.rows[1].detail == "Hooks installed")
+        #expect(p.skipped.isEmpty)
+        // A partly installed agent that is skipped stays out of the list, and still counts as connected for the hint.
+        let partial = prompt(with([.codex: .partial]), skipped: [.codex])
+        #expect(partial.rows.map(\.agent) == [.claudeCode])
+        #expect(partial.skipped == [.codex])
+        #expect(!partial.showsWings)
     }
 
     @Test func withNoAgentFoundClaudeCodeAndCodexAreOffered() {
@@ -126,7 +170,7 @@ struct SetupPromptTests {
         // Installed before this launch: nothing more to say about it.
         #expect(p.rows[0].nextStep == nil)
         #expect(p.rows[1].action == .connect)
-        #expect(p.closeTitle == "Not now")
+        #expect(p.closeTitle == "Later")
     }
 
     @Test func anInstallMadeNowKeepsTheCardAndSaysWhatToDoNext() {
@@ -169,7 +213,7 @@ struct SetupPromptTests {
         #expect(p.rows[1].detail == "Could not read its file. See Settings.")
         #expect(p.rows[1].action == nil)
         #expect(p.rows[1].status == nil)
-        #expect(p.closeTitle == "Not now")
+        #expect(p.closeTitle == "Later")
         // An unreadable file alone does not count as connected.
         var unread = nothing
         unread[.codex] = nil
