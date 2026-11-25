@@ -104,19 +104,65 @@ public struct SetupPrompt: Equatable, Sendable {
         }
     }
 
-    /// The text of the confirmation that opens inside a row before anything is written.
-    public static func confirmation(for agent: AgentKind, fileExists: Bool) -> String {
+    /// The text of the confirmation that opens inside a row before anything is written (ONB-01):
+    /// what you get, which file changes, what the agent then sends and where, and the way back.
+    /// `place` says where the sessions show: "here" in the card, "in the notch" in Settings.
+    public static func confirmation(for agent: AgentKind, fileExists: Bool, place: String = "here") -> String {
         let path = displayPath(for: agent)
-        guard let target = HookTarget.all.first(where: { $0.agent == agent }) else {
-            // The plugin installer refuses a file it did not write, and backs up its own file only when edited.
-            return fileExists
-                ? "Replaces Who's Working's own plugin file, \(path). A copy you edited is backed up first. Other plugins stay as they are."
-                : "Writes Who's Working's own plugin file, \(path). Other plugins stay as they are."
+        let name = agent.displayName
+        let get = "To show \(name) sessions \(place), Who's Working"
+        guard HookTarget.all.contains(where: { $0.agent == agent }) else {
+            // The plugin installer backs up any copy that differs from this version before replacing it,
+            // refuses a file it did not write, and trims prompt text before it sends anything.
+            let change = fileExists
+                ? "replaces its own plugin file, \(path), and backs up the old copy first."
+                : "adds its own plugin file, \(path)."
+            return "\(get) \(change) "
+                + "The plugin sends status, commands and paths to Who's Working on this Mac, not your prompts. "
+                + "Uninstall in Settings deletes it."
         }
-        // A backup is made only when a file is there and is changed: a repair can find nothing to change.
-        return fileExists
-            ? "Adds a hook to \(target.events.count) events in \(path). The file is backed up before it is changed, and other tools' hooks stay as they are."
-            : "Creates \(path) with a hook for \(target.events.count) events."
+        // A backup is made only when the file is there and is changed: a repair can find nothing to change.
+        let change = fileExists
+            ? "adds a hook to \(path), backing it up before any change."
+            : "creates \(path) with a hook in it."
+        return "\(get) \(change) "
+            + "\(name) then passes its events, \(eventContents(for: agent)) included, to Who's Working on this Mac. "
+            + "Uninstall in Settings removes it."
+    }
+
+    /// The full explanation in each agent's Settings section (ONB-02). Settings shows it whether or
+    /// not the file exists, so the backup is stated as conditional. Only the events are said to stay
+    /// on the Mac: the app itself asks GitHub for updates when the user clicks (DST-03).
+    public static func settingsExplanation(for agent: AgentKind) -> String {
+        let path = displayPath(for: agent)
+        let name = agent.displayName
+        guard HookTarget.all.contains(where: { $0.agent == agent }) else {
+            return "To show \(name) sessions in the notch, Who's Working adds its own plugin file, \(path). "
+                + "Before it replaces an older copy, it backs that copy up. "
+                + "The plugin passes \(name)'s status, commands and paths to Who's Working, not the prompts you type. "
+                + "These events stay on this Mac, and the plugin never answers a permission or changes anything. "
+                + "Uninstall deletes only that file, with a backup if you edited it. Other plugins stay as they are."
+        }
+        // The hook script prints nothing and exits 0, so it makes no decision (ING-07, ING-08).
+        return "To show \(name) sessions in the notch, Who's Working adds a hook to \(path). "
+            + "Before it changes an existing file, it backs the file up. "
+            + "\(name) then passes its events, \(eventContents(for: agent)) included, to Who's Working. "
+            + "These events stay on this Mac, and the hook never approves, blocks or changes anything. "
+            + "Uninstall removes only Who's Working's entries. Your other hooks, the backups and a file it created stay."
+    }
+
+    /// What the hooked events carry beyond status, from each agent's payloads (Tests/Fixtures).
+    static func eventContents(for agent: AgentKind) -> String {
+        switch agent {
+        case .claudeCode, .codex, .antigravity: "prompts, commands and paths"
+        case .cursor: "commands, paths and the agent's thinking"
+        case .openCode: "status, commands and paths"
+        }
+    }
+
+    /// The button that writes, in the confirmation: named for what it adds.
+    public static func confirmTitle(for agent: AgentKind) -> String {
+        agent == .openCode ? "Add plugin" : "Add hook"
     }
 
     /// An install counts as made from the card only when it changed the file and left the hooks

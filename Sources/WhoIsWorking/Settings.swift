@@ -18,7 +18,7 @@ extension PluginInstaller: AgentInstalling {}
 @MainActor
 final class HookManager: ObservableObject {
     @Published private(set) var status: HookInstallStatus?
-    @Published private(set) var problem: String?
+    @Published private(set) var problem: InstallerProblem?
     @Published private(set) var lastResult: String?
 
     let installer: any AgentInstalling
@@ -70,7 +70,7 @@ final class HookManager: ObservableObject {
             }
         } catch {
             if status != nil { status = nil }
-            problem = "\(error)"
+            problem = InstallerProblem(error, action: .read, agent: agent)
             problemIsFromRead = true
         }
     }
@@ -87,11 +87,11 @@ final class HookManager: ObservableObject {
     /// At launch only: replaces an outdated copy of WhoIsWorking's own plugin, with a backup (OPC-09).
     func updatePluginIfOutdated() {
         guard let plugin = installer as? PluginInstaller else { return }
-        var failure: String?
+        var failure: InstallerProblem?
         do {
             if try plugin.updateIfOutdated() { lastResult = "Updated the plugin to this version." }
         } catch {
-            failure = "Could not update the plugin: \(error)"
+            failure = InstallerProblem(error, action: .update, agent: agent)
         }
         refresh()
         if let failure {  // shown in Settings, after refresh cleared the old one
@@ -111,7 +111,7 @@ final class HookManager: ObservableObject {
                 ?? (result.changed ? "Installed." : "Already installed; nothing changed.")
         } catch {
             lastResult = nil
-            problem = "\(error)"
+            problem = InstallerProblem(error, action: .add, agent: agent)
             problemIsFromRead = false
             return nil
         }
@@ -128,7 +128,7 @@ final class HookManager: ObservableObject {
                 ?? (result.changed ? "Removed." : "Not installed; nothing changed.")
         } catch {
             lastResult = nil
-            problem = "\(error)"
+            problem = InstallerProblem(error, action: .remove, agent: agent)
             problemIsFromRead = false
             return
         }
@@ -183,11 +183,7 @@ struct HooksSection: View {
     /// "hooks" or "plugin".
     private var noun: String { hooks.isPlugin ? "plugin" : "hooks" }
 
-    private var explanation: String {
-        hooks.isPlugin
-            ? "Who's Working adds its own plugin file, \(hooks.displayPath). Other plugins stay as they are. The plugin only reports status; it never answers a permission."
-            : "Who's Working adds one hook to \(hooks.events.count) events in \(hooks.displayPath). Other tools' hooks stay as they are. A backup is saved next to the file before every change."
-    }
+    private var explanation: String { SetupPrompt.settingsExplanation(for: hooks.agent) }
 
     var body: some View {
         Section(title) {
@@ -209,7 +205,15 @@ struct HooksSection: View {
                     .disabled(hooks.status == .notInstalled || hooks.status == nil)
             }
             if let problem = hooks.problem {
-                Text(problem).font(.callout).foregroundStyle(.red).textSelection(.enabled)
+                // ONB-06: the cause and the fix, then the raw detail on a dimmer line.
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(problem.text).font(.callout).foregroundStyle(.red)
+                    if let detail = problem.detail {
+                        Text(detail).font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+                .fixedSize(horizontal: false, vertical: true)
+                .textSelection(.enabled)
             }
             if let last = hooks.lastResult {
                 Text(last).font(.callout).foregroundStyle(.secondary).textSelection(.enabled)
@@ -219,9 +223,12 @@ struct HooksSection: View {
             Button("Install") { hooks.install() }
             Button("Cancel", role: .cancel) {}
         } message: {
+            // The same consent text as the card (ONB-01), plus the event names, which the card leaves out.
+            let consent = SetupPrompt.confirmation(
+                for: hooks.agent, fileExists: FileManager.default.fileExists(atPath: hooks.fileURL.path), place: "in the notch")
             Text(hooks.isPlugin
-                ? "Who's Working will write \(hooks.displayPath). OpenCode loads it the next time it starts."
-                : "Who's Working will back up \(hooks.displayPath), then add its hook to: \(hooks.events.joined(separator: ", ")).")
+                ? "\(consent) OpenCode loads the plugin the next time it starts."
+                : "\(consent) Events: \(hooks.events.joined(separator: ", ")).")
         }
         .alert("Uninstall \(title) \(noun)?", isPresented: $confirmUninstall) {
             Button("Uninstall", role: .destructive) { hooks.uninstall() }
@@ -229,14 +236,14 @@ struct HooksSection: View {
         } message: {
             Text(hooks.isPlugin
                 ? "Who's Working will delete \(hooks.displayPath) and nothing else."
-                : "Who's Working will back up \(hooks.displayPath), then remove only its own hook entries.")
+                : "Who's Working backs up \(hooks.displayPath), then removes only its own hook entries. Your other hooks stay as they are.")
         }
     }
 
     private var statusText: String {
         switch hooks.status {
         case .installed: "Installed"
-        case .partial: "Partly installed — reinstall to fix"
+        case .partial: "Partly installed. Reinstall to fix it."
         case .notInstalled: "Not installed"
         case nil: "Unknown"
         }
@@ -291,11 +298,11 @@ struct SettingsView: View {
         Form {
             HooksSection(
                 title: "Claude Code",
-                note: "New sessions pick the hooks up; running ones may need a restart.",
+                note: "New sessions pick up the hook. Restart sessions that were already running.",
                 hooks: installers.claude)
             HooksSection(
                 title: "Codex",
-                note: "Codex runs new hooks only after you trust them. In the Codex CLI type /hooks and trust the Who's Working entries; in the Codex app use Review hooks (or Settings › Hooks). Until then Codex skips them.",
+                note: "Codex needs one more step: it runs a new hook only after you trust it. In the Codex CLI, type /hooks and trust the Who's Working entries. In the Codex app, use Review hooks (or Settings › Hooks). Until you trust them, Codex skips the hooks.",
                 hooks: installers.codex)
             HooksSection(
                 title: "Cursor (experimental)",
