@@ -84,7 +84,7 @@ After DST-15 passes:
 
 1. If a WhoIsWorking process is running from `/Applications/WhoIsWorking.app`, the script sends that process SIGTERM and waits up to 5 s for it to exit (the timing `scripts/update.sh` uses). Before SIGKILL it checks again that the pid is still that executable. It never kills by name alone. If the process is still there 2 s after SIGKILL, the script refuses and changes nothing.
 2. It checks that it still holds the lock and that the destination still passes DST-14. It renames the old app into its staging folder, then renames the staged copy to `/Applications/WhoIsWorking.app`, but only when nothing is at that path (so the new app can never land inside something that appeared there). When the second rename fails, it renames the old app back. The old app is deleted only after the app at `/Applications/WhoIsWorking.app` is seen to be the new version; in every other case it is put back or kept, and its path is printed.
-3. It prints the installed version and path and asks macOS to open the app. A failed open is reported as such; the install is done and the script still exits 0. When a WhoIsWorking process is running from another path, that copy owns the session socket: the script leaves it alone, does not open the new copy, and names the path of the copy to quit. A process whose path cannot be read as an absolute path counts as running from another path.
+3. It prints the installed version and path and asks macOS to open the app. A failed open is reported as such; the install is done and the script still exits 0. Whatever happened to the launch, the set-up guidance of DST-22 comes last. When a WhoIsWorking process is running from another path, that copy owns the session socket: the script leaves it alone, does not open the new copy, names the path of the copy to quit, and says to open Who's Working from Applications afterwards. A process whose path cannot be read as an absolute path counts as running from another path.
 
 Only one install runs at a time. The lock is the symbolic link `/Applications/.WhoIsWorking.install.lock`, whose target is the pid that holds it: one system call makes it and says who owns it. A second run refuses while the holder is alive. A lock whose holder is gone is taken over by renaming it away, which only one run can do for a given link; a run that finds it took a live lock gives it back and refuses. Anything else at that path (a file, a directory, a link whose target is not a pid) is foreign, and the script refuses without touching it.
 
@@ -95,7 +95,7 @@ A staging folder left by a run that was killed or lost power is handled by the n
 Running the command with the same release already installed installs it again and ends in the same state. Running it over an older release is the update route. A script pinned to an older version than the installed one refuses (DST-14).
 
 Tests: `InstallScriptTests/installingOverAnOlderOrEqualCopyReplacesIt`, `InstallScriptTests/aCopyRunningFromTheDestinationIsStoppedFirst`, `InstallScriptTests/aCopyRunningElsewhereIsLeftAloneAndNamed`, `InstallScriptTests/aSecondInstallIsRefusedWhileOneIsRunning`, `InstallScriptTests/twoInstallsAtOnceEndInOneGoodInstall`, `InstallScriptTests/aForeignEntryAtTheLockPathIsRefused`, `InstallScriptTests/leftoversFromAKilledRunAreRecoveredFirst`, `InstallScriptTests/aFolderThatOnlyLooksLikeALeftoverIsLeftAlone`
-Verified by: not tested: the SIGKILL after 5 s (it would add 5 s to every test run), a failed second rename and the rollback after it, a kill between the two renames, a stale lock taken over by two runs at once, and `scripts/update.sh --install`, which has not been run since it was changed to install through this script
+Verified by: not tested: the SIGKILL after 5 s (it would add 5 s to every test run), a failed second rename and the rollback after it, a kill between the two renames, a stale lock taken over by two runs at once. `scripts/update.sh --install` ran on 2026-11-25 as a fresh install (nothing at the destination) and installed and opened the build, and again the same day as an update over that copy: it stopped the running copy, replaced the app, opened it and printed the one-line update text of DST-22
 
 ### DST-17 Quarantine is left alone
 
@@ -145,10 +145,36 @@ Verified by: `scripts/release.sh 0.1.0 --dry-run` on 2026-11-23 for the renderin
 - show both install routes: the command first, then the DMG with its Open Anyway steps;
 - say what the script does (downloads the DMG from this repo, checks it, copies the app to Applications, opens it; no `sudo`), that it skips the macOS first-launch check the DMG route goes through, what its checksum does and does not prove, and that the downloaded file can be read before it is run;
 - say that macOS may show a paste alert in Terminal, and that a standard account or a denied App Management request means using the DMG;
+- give the set-up steps right after the install routes, for both of them: open Who's Working again while it runs to show Settings, click Install hooks… for each agent (OpenCode: Install plugin…), trust the new hooks in Codex, restart sessions that were already running. They never end an install route with "hover the notch" alone. Notes and the README describe the setup hint and the "Finish setup" card in the notch (UI-16, UI-17) only from the first release that has them (the release after 0.1.1), and then lead with that route;
 - say under Update that running the command again installs the newest release;
 - say under Privacy that the command downloads from GitHub, which sees the IP address.
 
 Verified by: still open; the public README after the first release with `install.sh`
+
+### DST-22 The script ends with the set-up steps
+
+Source: 2026-11-25. A person installed 0.1.1 with the command and saw no sessions: the script ended with "Hover the notch to see your sessions", and nothing said that agents have to be connected first.
+
+After the line that names the installed version and path, and after whatever the script says about opening the app (opened, opening failed, the Open Anyway steps of DST-17, or another copy running, DST-16), the script prints guidance on stdout as its last lines:
+
+- When nothing was at the destination before this run:
+
+```text
+Connect each agent you use, if you have not done that yet. Without it, sessions are missing or show no live status.
+  1. With Who's Working running, move the pointer to the notch, or to the top centre of a screen without one.
+  2. Under "Finish setup", click Connect, then Install, for each agent you use. If there is no such card,
+     or an agent is missing from it, open Who's Working again from Applications: that shows Settings, with every agent.
+  3. Codex only: trust the new hooks. Use Review hooks in the Codex app, or type /hooks in the Codex CLI.
+  4. Sessions that were already running may need a restart.
+Your sessions show up in the notch too.
+```
+
+- When this run replaced an installed copy, one line: `Hooks you installed before keep working. If sessions are missing, open Who's Working again from Applications and check Settings.`
+
+The script still reads nothing about hooks (DST-18), so the first text is conditional: an empty destination does not prove that set-up is needed, because deleting the app leaves the hooks in place. Steps 1 and 2 point at the setup card in the notch (UI-16, UI-17), which needs no window to come to the front. Step 1 says "with Who's Working running" because in three of the branches the app is not open yet, and step 2 sends people to Settings when the card or an agent is missing from it (setup dismissed earlier, an agent not found on this Mac), which also keeps a route without the pointer. The text does not say that no session shows without hooks: Claude Code sessions and Codex CLIs can appear without them, with little or no live status. Whether a copy was replaced is the script's own observation and starts as "no" inside the script, so no inherited environment variable changes which text is printed (DST-19). A run that fails prints neither.
+
+Tests: `InstallScriptTests/aFreshInstallEndsWithTheSetUpSteps`, `InstallScriptTests/installingOverAnOlderOrEqualCopyReplacesIt`, `InstallScriptTests/aQuarantinedCopyKeepsItsAttributeAndGetsTheOpenAnywaySteps`, `InstallScriptTests/aCopyRunningElsewhereIsLeftAloneAndNamed`, `InstallScriptTests/aWrongChecksumRefusesAndKeepsTheOldCopy`, `InstallScriptTests/aMissingDownloadIsReportedAndChangesNothing`
+Verified by: `scripts/update.sh --install` on the development Mac on 2026-11-25, with nothing in Applications, no hooks and no preferences: the rendering that opens the app printed "Opening Who's Working." and then the seven lines above. The Settings window that the app then opened by itself stayed hidden behind the frontmost app's window (see UI-16); the steps were rewritten the same day to point at the notch, and that text has not been run from an install yet. No test runs that branch, and `scripts/release.sh --dry-run` runs a rendering that does not open the app. Still open: the published script of the next release, on a Mac that never had the app
 
 ## Changes made to other specs
 
@@ -183,6 +209,17 @@ Astra then reviewed the scripts and tests and advised holding 0.1.1 until two bl
 - **Fixed:** the destination is checked again right before the swap, and the new app is never moved onto an occupied path; the old app is deleted only after a finished swap; a process that will not quit stops the install; versions too long to compare are refused; `curl -q` and HTTPS-only in the README command and the release check; `ditto` with an empty environment; the renderer holes above; in `release.sh`, a failed state lookup no longer reads as "published", a re-run on a published release repeats the anonymous checks, and a resumed draft gets the notes that were shown; `update.sh --install` goes through the install script.
 - **Tests added:** four installs at once, a folder that only looks like a leftover (also with a linked `old`), a directory or a link at the lock's path, an over-long version, the old copy still running after a refusal, and the script deciding not to open the app when rendered to open it. Tests now remove what they make.
 - **Not done:** parsing `hdiutil attach -plist`; percent-encoding the checkout path in the release check (paths with such characters are refused instead); tests for a failed second rename, a kill between the renames, and a simultaneous stale-lock takeover, which need fault injection the script has no hook for.
+
+**The set-up steps (DST-22, UI-16), 2026-11-25.**
+
+Astra reviewed the plan for DST-22 and for UI-16 in [08 Notch UI](08-notch-ui.md). Checked here before adopting: `SessionStore.startSocket` carries on after a socket collision, the quarantine and other-copy branches returned before the end of `main`, and "System Settings" is in the quarantine text.
+
+- **Fixed blocker:** a second copy would have opened Settings and used up the one-time first-launch check. The check now needs the session socket, and a snapshot run skips it (UI-16).
+- **Changed:** the fresh-install text is conditional, because an empty destination does not prove set-up is needed; the launch decision moved into its own function so the guidance follows every branch; "replaced" starts as "no" inside the script; the tests look for the block after the branch's own message and do not match on "Settings" alone; the 0.1.1 notes get manual steps only, after both install routes.
+- **After the second review, of the diff:** the first line no longer says that sessions only show once agents are connected, and step 1 no longer leans on Settings opening by itself; the wrong-checksum and missing-download tests check that a failed run prints no guidance; DST-22's open check says what the dry run cannot show; one call opens Settings when the debug override and the first-launch check both ask for it.
+- **Not done, an older gap in DST-16 that review found:** when the new copy is quarantined and another copy is running from elsewhere, the script prints the Open Anyway steps and returns without naming the copy to quit. The person then opens a second copy, which says another copy is running and offers no setup (UI-16).
+- **Not adopted:** skipping the first-launch check for a bare debug binary. It has its own preferences domain, so it cannot use up the installed app's check, and the check could then only be verified by rebuilding `build/WhoIsWorking.app`.
+- **Replaced the same day:** the first-launch Settings window that the points above about a "first-launch check" refer to was built, failed in a real install (it opened behind the frontmost window) and was removed. The setup hint and card in the notch took its place, with a review of their own: see UI-16, UI-17 and the design notes in [08 Notch UI](08-notch-ui.md). What stays from this review is the installer's closing text and its tests; steps 1 and 2 of that text now point at the notch.
 
 ## Alternatives considered
 

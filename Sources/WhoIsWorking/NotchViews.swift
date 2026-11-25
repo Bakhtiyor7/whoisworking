@@ -27,12 +27,15 @@ final class AppActions: ObservableObject {
 struct NotchRootView: View {
     @ObservedObject var model: NotchModel
     @ObservedObject var store: SessionStore
+    @ObservedObject var setup: SetupModel
     let actions: AppActions
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         let summary = store.summary
-        let wings = summary.showsWings
+        // One value decides what the collapsed notch draws and where the pointer opens it.
+        let collapsed = CollapsedNotch(summary: summary, setup: setup.prompt)
+        let wings = collapsed.showsWings
         let size = model.shapeSize(wings: wings)
         let radius: CGFloat = model.expanded ? 28 : (model.hasNotch ? 12 : 10)
         let shape = UnevenRoundedRectangle(bottomLeadingRadius: radius, bottomTrailingRadius: radius, style: .continuous)
@@ -43,15 +46,28 @@ struct NotchRootView: View {
         ZStack(alignment: .top) {
             shape.fill(.black)
             if model.expanded {
-                ExpandedPanel(model: model, summary: summary, now: store.now, actions: actions, socketError: store.socketError)
-                    .padding(.top, model.notchHeight + 10)
-                    .padding([.horizontal, .bottom], 14)
-                    .transition(.opacity)
-            } else if wings {
-                Wings(count: summary.needsYouCount, wait: summary.longestWait ?? 0)
-                    .frame(height: model.notchHeight)
-                    .padding(.horizontal, 16)
-                    .transition(.opacity)
+                ExpandedPanel(
+                    model: model, setup: setup, summary: summary, now: store.now, actions: actions,
+                    socketError: store.socketError
+                )
+                .padding(.top, model.notchHeight + 10)
+                .padding([.horizontal, .bottom], 14)
+                .transition(.opacity)
+            } else {
+                switch collapsed {
+                case .needsYou(let count, let wait):
+                    Wings(count: count, wait: wait)
+                        .frame(height: model.notchHeight)
+                        .padding(.horizontal, 16)
+                        .transition(.opacity)
+                case .setup:
+                    SetupWings()
+                        .frame(height: model.notchHeight)
+                        .padding(.horizontal, 16)
+                        .transition(.opacity)
+                case .hidden:
+                    EmptyView()
+                }
             }
         }
         .frame(width: size.width, height: size.height)
@@ -278,6 +294,7 @@ struct NeedsYouCard: View {
 
 struct ExpandedPanel: View {
     @ObservedObject var model: NotchModel
+    @ObservedObject var setup: SetupModel
     let summary: NotchSummary
     let now: Date
     let actions: AppActions
@@ -313,9 +330,7 @@ struct ExpandedPanel: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 6)
             }
-            if summary.isEmpty {
-                EmptyStateView(hooksInstalled: actions.hooksInstalled(), openSettings: actions.openSettings)
-            }
+            // A session that needs the user stays first, above setup (UI-17).
             if !summary.needsYou.isEmpty {
                 VStack(spacing: 6) {
                     SectionLabel(text: "NEEDS YOU", color: Palette.amber)
@@ -323,6 +338,11 @@ struct ExpandedPanel: View {
                         NeedsYouCard(session: session, now: now) { actions.openSession(session) }
                     }
                 }
+            }
+            if setup.prompt.showsCard {
+                SetupCard(setup: setup)
+            } else if summary.isEmpty {
+                EmptyStateView(hooksInstalled: actions.hooksInstalled(), openSettings: actions.openSettings)
             }
             if !summary.working.isEmpty {
                 VStack(spacing: 2) {

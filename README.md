@@ -37,6 +37,8 @@ open build/WhoIsWorking.app
 
 Hover the notch to open the panel. With no notch (external display), WhoIsWorking shows a small pill at the top centre when something needs you. Opening `WhoIsWorking.app` again while it runs shows Settings, which also has the Quit button.
 
+Until an agent is connected, the notch shows a setup hint: a plug and "Set up" beside the notch (or in the pill). Hovering opens the panel with a "Finish setup" card that lists the agents found on this Mac. **Connect** shows what will change in that agent's file, and **Install** then writes it, the same way the Install button in Settings does. After an install the row says what is left, such as trusting the hooks in Codex. "Not now" hides the hint and the card for a week; they then come back once, and closing them a second time ("Don't show again") hides them for good. Settings keeps every agent.
+
 ## Update to the latest changes
 
 ```bash
@@ -213,6 +215,7 @@ Tested live with Codex CLI 0.163.0 and 0.171.0 (needs approval, approve, done; a
 | `WHOISWORKING_FORCE=expanded` | Keeps the panel open |
 | `WHOISWORKING_NO_NOTCH=1` | Uses the no-notch pill layout on a notched screen |
 | `WHOISWORKING_OPEN_SETTINGS=1` | Opens Settings at launch |
+| `WHOISWORKING_SETUP_PREVIEW=confirm:codex` | Shows the setup card with that agent's confirmation open (`installed:codex`: as if just installed from the card); agents are `claudeCode`, `codex`, `cursor`, `openCode`, `antigravity` |
 
 ## Project docs
 

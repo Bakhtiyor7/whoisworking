@@ -13,6 +13,9 @@ final class SessionStore: ObservableObject {
     @Published private(set) var socketError: String?
 
     private var server: EventSocketServer?
+    /// True once this copy listens on the session socket. A second copy never does (UI-15), and
+    /// `socketError` is published whenever this changes.
+    var ownsSocket: Bool { server != nil }
     private var discoveryTimer: Timer?
     private var clockTimer: Timer?
     private var directoryWatcher: DispatchSourceFileSystemObject?

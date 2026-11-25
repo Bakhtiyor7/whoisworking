@@ -46,6 +46,7 @@ final class FirstMouseHostingView<Content: View>: NSHostingView<Content> {
 final class NotchPanelController {
     let model = NotchModel()
     private let store: SessionStore
+    private let setup: SetupModel
     private let actions: AppActions
     private var panel: NSPanel!
     private var timer: Timer?
@@ -59,8 +60,9 @@ final class NotchPanelController {
     static let openDwell: TimeInterval = 0.15
     static let closeGrace: TimeInterval = 0.25
 
-    init(store: SessionStore, actions: AppActions) {
+    init(store: SessionStore, setup: SetupModel, actions: AppActions) {
         self.store = store
+        self.setup = setup
         self.actions = actions
     }
 
@@ -74,7 +76,7 @@ final class NotchPanelController {
         panel.ignoresMouseEvents = true
         panel.isMovable = false
         panel.hidesOnDeactivate = false
-        panel.contentView = FirstMouseHostingView(rootView: NotchRootView(model: model, store: store, actions: actions))
+        panel.contentView = FirstMouseHostingView(rootView: NotchRootView(model: model, store: store, setup: setup, actions: actions))
         layout()
         panel.orderFrontRegardless()
 
@@ -116,7 +118,7 @@ final class NotchPanelController {
 
     private func snapshot(to path: String) {
         let size = panel.frame.size
-        let view = NotchRootView(model: model, store: store, actions: actions)
+        let view = NotchRootView(model: model, store: store, setup: setup, actions: actions)
             .frame(width: size.width, height: size.height)
             .background(Color(white: 0.85))  // stands in for the menu bar / desktop
             .environment(\.snapshotMode, true)
@@ -172,7 +174,8 @@ final class NotchPanelController {
                 if now.timeIntervalSince(outsideSince!) > Self.closeGrace { setExpanded(false) }
             }
         } else {
-            let wings = store.summary.showsWings
+            // The same value the view draws from, so the hover area always matches what is on screen.
+            let wings = CollapsedNotch(summary: store.summary, setup: setup.prompt).showsWings
             let area = topRect(width: model.collapsedWidth(wings: wings), height: model.notchHeight)
             if area.contains(mouse) {
                 if insideSince == nil { insideSince = now }
@@ -188,8 +191,12 @@ final class NotchPanelController {
         outsideSince = nil
         guard model.expanded != value else { return }
         if value {
+            // Hooks may have been installed or removed elsewhere since the panel was last open (UI-17).
+            setup.refresh()
             shownDoneIds = Set(store.summary.done.filter { $0.state == .doneUnseen }.map(\.id))
         } else {
+            // An open confirmation must not wait for the next visit, where one click would install (UI-17).
+            setup.cancelConfirmation()
             // Done sessions the user just looked at become idle.
             store.markViewed(Array(shownDoneIds))
             shownDoneIds = []

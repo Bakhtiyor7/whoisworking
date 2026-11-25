@@ -12,7 +12,7 @@ The settled design is in `docs/plan.md` §5a and `docs/specs/08-notch-ui.md`. Ne
 - The panel body is pure black with the notch's corner curve. Glass never goes on the body. It is allowed only on controls inside the expanded panel.
 - One colour per state, always with an icon or shape: amber needs you, green done, red error, neutral working.
 - SF Pro and SF Symbols. Agents are a small monochrome mark (CC, CX).
-- Hidden by default: nothing is drawn while sessions are idle or working.
+- Hidden by default: nothing is drawn while sessions are idle or working. The one exception is the setup hint (UI-16): white, never amber, until an agent is connected or the user dismisses it.
 - The package supports macOS 15. Liquid Glass APIs (`glassEffect`, `GlassEffectContainer`, glass button styles) need `if #available(macOS 26, *)` with a plain fallback. Standard system controls in the Settings window get glass from the system and need no custom code.
 - Respect Reduce Motion, give every control a VoiceOver label, and keep text contrast on black.
 

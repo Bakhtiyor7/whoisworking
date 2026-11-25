@@ -22,6 +22,9 @@ final class HookManager: ObservableObject {
     @Published private(set) var lastResult: String?
 
     let installer: any AgentInstalling
+    let agent: AgentKind
+    /// The agent's hook file, or the plugin file.
+    let fileURL: URL
     /// `~/…` path shown in Settings.
     let displayPath: String
     /// Event names; empty for the plugin file.
@@ -33,6 +36,8 @@ final class HookManager: ObservableObject {
         installer = HookInstaller(
             target: target, settingsURL: target.defaultSettingsURL,
             hookCommand: AppPaths.hookCommand(agent: target.id))
+        agent = target.agent
+        fileURL = target.defaultSettingsURL
         displayPath = "~/" + target.defaultSettingsPath
         events = target.events
         usesHookScript = true
@@ -41,6 +46,8 @@ final class HookManager: ObservableObject {
     /// The OpenCode plugin file (OPC-01).
     init(plugin: PluginInstaller) {
         installer = plugin
+        agent = .openCode
+        fileURL = plugin.fileURL
         displayPath = plugin.fileURL.path.replacingOccurrences(of: NSHomeDirectory(), with: "~")
         events = []
         usesHookScript = false
@@ -48,14 +55,29 @@ final class HookManager: ObservableObject {
 
     var isPlugin: Bool { !usesHookScript }
 
-    func refresh() {
+    /// True while `problem` holds a failed status read, not a message from an install or a plugin update.
+    private var problemIsFromRead = false
+
+    /// Reads the status again and writes nothing (the setup card does this, UI-17). It leaves a
+    /// message from a failed install or plugin update in place; only a new look in Settings clears that.
+    func reloadStatus() {
         do {
-            status = try installer.status()
-            problem = nil
+            let read = try installer.status()
+            if read != status { status = read }
+            if problemIsFromRead {
+                problem = nil
+                problemIsFromRead = false
+            }
         } catch {
-            status = nil
+            if status != nil { status = nil }
             problem = "\(error)"
+            problemIsFromRead = true
         }
+    }
+
+    func refresh() {
+        reloadStatus()
+        if !problemIsFromRead { problem = nil }
         // Keep the installed script current (it lives in the app's own folder, not in the agent's).
         if usesHookScript, status == .installed || status == .partial, !HookScript.isCurrent(at: AppPaths.hookScript) {
             try? HookScript.write(to: AppPaths.hookScript)
@@ -72,21 +94,29 @@ final class HookManager: ObservableObject {
             failure = "Could not update the plugin: \(error)"
         }
         refresh()
-        if let failure { problem = failure }  // shown in Settings, after refresh cleared the old one
+        if let failure {  // shown in Settings, after refresh cleared the old one
+            problem = failure
+            problemIsFromRead = false
+        }
     }
 
-    func install() {
+    /// Returns what the installer did, or nil when it refused or failed (`problem` then says why).
+    @discardableResult
+    func install() -> HookInstaller.Result? {
+        let result: HookInstaller.Result
         do {
             if usesHookScript { try HookScript.write(to: AppPaths.hookScript) }
-            let result = try installer.install()
+            result = try installer.install()
             lastResult = result.backupURL.map { "Installed. Backup: \($0.lastPathComponent)" }
                 ?? (result.changed ? "Installed." : "Already installed; nothing changed.")
         } catch {
             lastResult = nil
             problem = "\(error)"
-            return
+            problemIsFromRead = false
+            return nil
         }
         refresh()
+        return result
     }
 
     func uninstall() {
@@ -99,6 +129,7 @@ final class HookManager: ObservableObject {
         } catch {
             lastResult = nil
             problem = "\(error)"
+            problemIsFromRead = false
             return
         }
         refresh()
@@ -238,6 +269,16 @@ struct AgentInstallers {
     let antigravity = HookManager(target: .antigravity)
 
     var all: [HookManager] { [claude, codex, cursor, openCode, antigravity] }
+
+    func manager(for agent: AgentKind) -> HookManager {
+        switch agent {
+        case .claudeCode: claude
+        case .codex: codex
+        case .cursor: cursor
+        case .openCode: openCode
+        case .antigravity: antigravity
+        }
+    }
 }
 
 struct SettingsView: View {

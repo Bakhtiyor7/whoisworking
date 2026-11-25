@@ -7,6 +7,7 @@
 #      SHA-256 against the value written below;
 #   3. copies WhoIsWorking.app out of the disk image, checks its signature, bundle id and version;
 #   4. quits a running Who's Working, replaces the copy in Applications and opens the new one.
+#   5. says how to connect your agents (the "Finish setup" card in the notch), which it does not do itself.
 #
 # It never uses sudo and never asks for a password. It changes nothing outside
 # @DEST@/WhoIsWorking.app, its own lock and staging folder there (both named
@@ -42,6 +43,8 @@ DEV=''
 ATTACHED=0
 LOCKED=0
 SWAPPED=0
+# 1 once this run has moved an installed copy aside: the closing lines differ for an update.
+REPLACED=0
 
 say() { printf '%s\n' "$*"; }
 fail() { printf 'whoisworking-install: %s\n' "$*" >&2; exit 1; }
@@ -315,6 +318,7 @@ swap() {
     if [ -e "$APP" ]; then
         /bin/mv "$APP" "$STAGE/old/WhoIsWorking.app" \
             || fail "could not move the installed app aside (macOS may be asking to allow App Management). Nothing was changed."
+        REPLACED=1
     fi
     # mv would move the new app *into* a directory that appeared here, so the place must be free.
     if [ -e "$APP" ] || [ -L "$APP" ] || ! /bin/mv "$new" "$APP"; then
@@ -326,6 +330,47 @@ swap() {
         fail "$APP is not the new app after the move."
     fi
     SWAPPED=1
+}
+
+# Opens the new app, or says why it was not opened (DST-16, DST-17).
+open_or_explain() {
+    if /usr/bin/xattr -p com.apple.quarantine "$APP" >/dev/null 2>&1; then
+        say "macOS marked this copy as downloaded, so it blocks the first launch. To allow it:"
+        say "  1. Open Who's Working from Applications, then click Done in the dialog."
+        say "  2. Open System Settings > Privacy & Security and scroll to the bottom."
+        say "  3. Click Open Anyway next to \"Who's Working\" and confirm with your password."
+        return 0
+    fi
+    others="$(copies_elsewhere)"
+    if [ -n "$others" ]; then
+        say "It was not opened, because another copy of Who's Working is running. Quit that one first:"
+        say "$others"
+        say "Then open Who's Working from Applications."
+        return 0
+    fi
+    if [ "$OPEN" = "1" ]; then
+        if /usr/bin/open "$APP" 2>/dev/null; then
+            say "Opening Who's Working."
+        else
+            say "Opening it failed. Open Who's Working from Applications."
+        fi
+    fi
+}
+
+# The last lines of every finished install (DST-22). The script reads nothing about hooks (DST-18),
+# so after a fresh install the steps are conditional: deleting the app leaves its hooks in place.
+next_steps() {
+    if [ "$REPLACED" = 1 ]; then
+        say "Hooks you installed before keep working. If sessions are missing, open Who's Working again from Applications and check Settings."
+        return 0
+    fi
+    say "Connect each agent you use, if you have not done that yet. Without it, sessions are missing or show no live status."
+    say "  1. With Who's Working running, move the pointer to the notch, or to the top centre of a screen without one."
+    say "  2. Under \"Finish setup\", click Connect, then Install, for each agent you use. If there is no such card,"
+    say "     or an agent is missing from it, open Who's Working again from Applications: that shows Settings, with every agent."
+    say "  3. Codex only: trust the new hooks. Use Review hooks in the Codex app, or type /hooks in the Codex CLI."
+    say "  4. Sessions that were already running may need a restart."
+    say "Your sessions show up in the notch too."
 }
 
 main() {
@@ -359,26 +404,8 @@ main() {
     swap
 
     say "Installed Who's Working $VERSION in $APP."
-    if /usr/bin/xattr -p com.apple.quarantine "$APP" >/dev/null 2>&1; then
-        say "macOS marked this copy as downloaded, so it blocks the first launch. To allow it:"
-        say "  1. Open Who's Working from Applications, then click Done in the dialog."
-        say "  2. Open System Settings > Privacy & Security and scroll to the bottom."
-        say "  3. Click Open Anyway next to \"Who's Working\" and confirm with your password."
-        return 0
-    fi
-    others="$(copies_elsewhere)"
-    if [ -n "$others" ]; then
-        say "It was not opened, because another copy of Who's Working is running. Quit that one first:"
-        say "$others"
-        return 0
-    fi
-    if [ "$OPEN" = "1" ]; then
-        if /usr/bin/open "$APP" 2>/dev/null; then
-            say "Opening Who's Working. Hover the notch to see your sessions."
-        else
-            say "Opening it failed. Open Who's Working from Applications."
-        fi
-    fi
+    open_or_explain
+    next_steps
 }
 
 main

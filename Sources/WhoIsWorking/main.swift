@@ -8,7 +8,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let installers = AgentInstallers()
     let login = LoginItem()
     lazy var settings = SettingsWindowController(installers: installers, login: login)
-    lazy var notch = NotchPanelController(store: store, actions: actions)
+    lazy var setup = SetupModel(installers: installers, store: store)
+    lazy var notch = NotchPanelController(store: store, setup: setup, actions: actions)
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Refreshing also keeps the hook script current (UI-14); the OpenCode plugin is updated here only (OPC-09).
@@ -27,6 +28,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             if !AppFocuser.focus(session) { NSSound.beep() }
         }
         store.start()
+        // After the socket is up: a copy without it offers no setup (UI-16).
+        setup.refresh()
         notch.show()
         if ProcessInfo.processInfo.environment["WHOISWORKING_OPEN_SETTINGS"] == "1" { settings.show() }
     }

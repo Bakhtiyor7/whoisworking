@@ -459,6 +459,8 @@ final class InstallScriptTests {
         let r = try box.install(f.v020, version: "0.2.0", sha: String(repeating: "0", count: 64))
         #expect(r.status != 0)
         #expect(r.err.contains("checksum"))
+        // A run that fails prints neither closing text (DST-22).
+        #expect(!r.all.contains("Finish setup") && !r.all.contains("keep working"))
         #expect(installedVersion(box.app) == "0.1.0")
         #expect(try box.installerEntries().isEmpty)
         #expect(try box.leftInTmp().isEmpty)
@@ -471,6 +473,7 @@ final class InstallScriptTests {
         let r = try run("/bin/sh", [script.path], environment: ["TMPDIR": box.tmp.path])
         #expect(r.status != 0)
         #expect(r.err.contains("download"))
+        #expect(!r.all.contains("Finish setup") && !r.all.contains("keep working"))
         #expect(try FileManager.default.contentsOfDirectory(atPath: box.dest.path).isEmpty)
         #expect(try box.leftInTmp().isEmpty)
     }
@@ -505,6 +508,28 @@ final class InstallScriptTests {
         #expect(!(try run("/usr/bin/hdiutil", ["info"]).out.contains(box.root.lastPathComponent)))
     }
 
+    @Test func aFreshInstallEndsWithTheSetUpSteps() throws {
+        let f = try fixtures.get()
+        let box = try newBox()
+        // An inherited variable must not turn the fresh-install text into the update line (DST-19).
+        let r = try box.install(f.v020, version: "0.2.0", environment: ["REPLACED": "1"])
+        #expect(r.status == 0, "\(r.all)")
+        let installed = try #require(r.out.range(of: "Installed Who's Working 0.2.0"), "\(r.all)")
+        let steps = try #require(r.out.range(of: "Connect each agent you use, if you have not done that yet."), "\(r.all)")
+        #expect(installed.upperBound <= steps.lowerBound)
+        // The steps point at the notch, which needs no window to come to the front (UI-16), and
+        // keep a route without the pointer.
+        #expect(r.out.contains("With Who's Working running, move the pointer to the notch, or to the top centre of a screen without one."))
+        // Not everyone gets the card or every agent in it (dismissed earlier, an agent not found): Settings has all.
+        #expect(r.out.contains("If there is no such card,\n"))
+        #expect(r.out.contains("or an agent is missing from it, open Who's Working again from Applications: that shows Settings, with every agent."))
+        for words in ["Under \"Finish setup\", click Connect, then Install", "Review hooks", "/hooks", "may need a restart"] {
+            #expect(r.out.contains(words), "\(words) is missing from: \(r.out)")
+        }
+        #expect(r.out.hasSuffix("Your sessions show up in the notch too.\n"))
+        #expect(!r.out.contains("keep working"))
+    }
+
     @Test func installingOverAnOlderOrEqualCopyReplacesIt() throws {
         let f = try fixtures.get()
         let box = try newBox()
@@ -520,6 +545,12 @@ final class InstallScriptTests {
         let again = try box.install(f.v020, version: "0.2.0")
         #expect(again.status == 0, "\(again.all)")
         #expect(installedVersion(box.app) == "0.2.0")
+        // An update says the hooks keep working and does not repeat the set-up steps (DST-22).
+        for r in [update, again] {
+            #expect(r.out.hasSuffix("check Settings.\n"), "\(r.out)")
+            #expect(r.out.contains("Hooks you installed before keep working"))
+            #expect(!r.out.contains("Finish setup"))
+        }
         #expect(try FileManager.default.contentsOfDirectory(atPath: box.dest.path) == ["WhoIsWorking.app"])
     }
 
@@ -579,6 +610,12 @@ final class InstallScriptTests {
         #expect(r.all.contains("Elsewhere/WhoIsWorking.app"))
         #expect(r.all.contains("was not opened"))
         #expect(!r.all.contains("Opening Who's Working"))
+        // The new copy is not running yet, so the script says to open it once the other one is quit.
+        #expect(r.out.contains("Then open Who's Working from Applications."))
+        // The set-up steps still come, after what was said about opening (DST-22).
+        let notOpened = try #require(r.out.range(of: "was not opened"))
+        let steps = try #require(r.out.range(of: "\"Finish setup\""), "\(r.out)")
+        #expect(notOpened.upperBound <= steps.lowerBound)
     }
 
     @Test func leftoversFromAKilledRunAreRecoveredFirst() throws {
@@ -642,5 +679,9 @@ final class InstallScriptTests {
         #expect(try run("/usr/bin/xattr", ["-p", "com.apple.quarantine", box.app.path]).status == 0)
         #expect(r.all.contains("Open Anyway"))
         #expect(!r.all.contains("Opening Who's Working"))
+        // The set-up steps still come, after the Open Anyway steps (DST-22).
+        let openAnyway = try #require(r.out.range(of: "Open Anyway"))
+        let steps = try #require(r.out.range(of: "\"Finish setup\""), "\(r.out)")
+        #expect(openAnyway.upperBound <= steps.lowerBound)
     }
 }
