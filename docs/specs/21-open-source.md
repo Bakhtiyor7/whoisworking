@@ -28,7 +28,7 @@ This spec owns what the repository holds, who may change it, and what a user can
 
 - how a release is built and published step by step: specs [13](13-distribution.md) and [16](16-signing-and-ci.md);
 - the install script: spec [20](20-install-command.md);
-- the wording of user-facing text and the setup flow inside the app: spec 22 (`22-setup-and-first-use.md`), the `whoisworking-copy` skill and `docs/distribution-rules.md`. These three arrive with the `setup-copy-pass` branch, so they are named here and not linked until it is merged.
+- the wording of user-facing text and the setup flow inside the app: spec [22](22-setup-and-first-use.md), the [`whoisworking-copy`](../../.agents/skills/whoisworking-copy/SKILL.md) skill and [`docs/distribution-rules.md`](../distribution-rules.md).
 
 "Requirements in other specs that change" lists what those must change for this spec to hold.
 
@@ -76,7 +76,7 @@ State on 2026-11-26, from `scripts/check-public.sh` with gitleaks 8.30.1 and tru
 - Tree: nothing found in 190 files. The artifact link is gone from `docs/plan.md`; the session id, session name, timestamps and turn id in the two fixtures are placeholders, and the tests that read them pass; the two tracked working plans moved to `docs/local/`, and specs 13 and 20, `docs/plan.md` and `AGENTS.md` no longer cite them.
 - History: five findings, all expected, all for the rewrite: the artifact link, the old session id, the old turn id, and the two working plans. Every author and committer address is the no-reply address.
 - Kept on purpose: commit trailers naming the Claude models that co-wrote the commits (OSS-23).
-- Still to do: the rewrite; the check again on the rewritten clone, on the exact refs that are published; `docs/install-and-setup-review.md` to `docs/local/` and its two citations; the read of every file by the maintainer.
+- Still to do: the rewrite; the check again on the rewritten clone, on the exact refs that are published; the read of every file by the maintainer.
 
 ### OSS-03 Known weaknesses are closed first
 
@@ -289,7 +289,7 @@ The settings are made on the new repository while it is still empty, and checked
 
 `.github/dependabot.yml` asks for weekly updates of the pinned actions. The release environment is named `release`.
 
-Checked on 2026-11-26: `scripts/check-repo-settings.sh Bakhtiyor7/agent-sessions-macos` ran every read on the private repository and changed nothing. 2 of 15 as expected (the Actions token is read-only and cannot approve pull requests; there are no secrets). Not readable there: secret scanning, push protection, private vulnerability reporting, fork approval and both rulesets, which GitHub offers on a private repository only with GitHub Pro. Settable there, and not yet set: SHA pinning required, Dependabot alerts, immutable releases.
+Checked on 2026-11-26: `scripts/check-repo-settings.sh Bakhtiyor7/agent-sessions-macos` ran every read on the private repository and changed nothing. 2 of 15 as expected (the Actions token is read-only and cannot approve pull requests; there are no secrets). Not readable there: secret scanning, push protection, private vulnerability reporting, fork approval and both rulesets, which GitHub offers on a private repository only with GitHub Pro. Settable there: SHA pinning required, Dependabot alerts, immutable releases. The user agreed, and all three were turned on the same day; the script then read 6 of 15 as expected (the other three ok: `.github/dependabot.yml` on `master`, the read-only token, no secrets). The rest waits for the new repository: public visibility, Discussions, the release environment, and what the private repository cannot read.
 Verified by (planned): the script's output on `Bakhtiyor7/whoisworking` after the settings are made, recorded here.
 
 ### OSS-19 Outside changes are read before they run
@@ -395,6 +395,6 @@ A consequence of D7 that changes how D2 is carried out: the public repository is
 1. ~~`GPL-3.0-only` or `GPL-3.0-or-later`?~~ Answered by the user on 2026-11-26: only. The maintainer can still relicense their own code later; "or later" would accept terms that do not exist yet.
 2. Is "Who's Working" free of conflicts for a Mac app? The name changed once already for this reason.
 3. The other tracked files that could count as working notes: `docs/spike/main.swift` and `docs/releases-repo/README.md`. Proposed: both stay; the second is replaced by the pointer README of OSS-06.
-4. `docs/distribution-rules.md` and specs 13 and 20 cite working plans that become local only. What they need from those plans is moved into them before publication (OSS-02); who does it is settled when that work starts.
+4. ~~`docs/distribution-rules.md` and specs 13 and 20 cite working plans that become local only.~~ Done on 2026-11-26: specs 13 and 20 in Phase 1; `docs/distribution-rules.md` and spec 22 when the `setup-copy-pass` branch was merged, with the review's sources for the rules written into `docs/distribution-rules.md`.
 
 Answered: ~~does `gh attestation verify` work without signing in?~~ No; `gh` 2.97.0 asks for a login (2026-11-26). OSS-08 says so.

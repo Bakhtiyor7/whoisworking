@@ -106,7 +106,7 @@ final class SetupModel: ObservableObject {
     func message(for agent: AgentKind) -> Message? {
         if let message = messages[agent] { return message }
         let manager = installers.manager(for: agent)
-        if manager.status == nil, let problem = manager.problem { return Message(text: problem, isError: true) }
+        if manager.status == nil, let problem = manager.problem { return Message(text: problem.text, isError: true) }
         return nil
     }
 
@@ -136,7 +136,7 @@ final class SetupModel: ObservableObject {
                 messages[agent] = Message(text: SetupPrompt.stillPartialNote(for: agent), isError: false)
             }
         } else {
-            messages[agent] = Message(text: manager.problem ?? "The install failed.", isError: true)
+            messages[agent] = Message(text: manager.problem?.text ?? "Couldn't add the hook. Open Settings to see why.", isError: true)
             // The file may have changed since the confirmation opened: show what is there now.
             manager.reloadStatus()
         }
@@ -208,7 +208,7 @@ struct SetupCard: View {
                         .contentShape(Rectangle())
                         .accessibilityHint(setup.prompt.closeHint)
                 }
-                Text("Who's Working learns about a session from its agent's hooks.")
+                Text("Connect shows what Who's Working will add for an agent before anything is written.")
                     .font(.system(size: 12)).foregroundStyle(Palette.dim)
                 VStack(spacing: 2) {
                     ForEach(setup.prompt.rows) { row in SetupRow(row: row, setup: setup) }
@@ -216,7 +216,7 @@ struct SetupCard: View {
                 if !setup.prompt.skipped.isEmpty {
                     SkippedLine(agents: setup.prompt.skipped, undo: setup.undoSkip)
                 }
-                Text("All agents, and uninstall, are in Settings.")
+                Text("Every agent, and Uninstall, are in Settings: the gear below.")
                     .font(.system(size: 11)).foregroundStyle(Palette.dim)
             }
             .padding(14)
@@ -300,9 +300,10 @@ struct SetupRow: View {
                         Spacer()
                         Button("Cancel") { setup.cancelConfirmation() }
                             .buttonStyle(SetupButtonStyle(prominent: false))
-                        Button("Install") { setup.install(row.agent) }
+                        let add = SetupPrompt.confirmTitle(for: row.agent)
+                        Button(add) { setup.install(row.agent) }
                             .buttonStyle(SetupButtonStyle(prominent: true))
-                            .accessibilityLabel("Install for \(row.agent.displayName)")
+                            .accessibilityLabel("\(add) for \(row.agent.displayName)")
                     }
                 }
                 .padding(.horizontal, 12).padding(.vertical, 10)

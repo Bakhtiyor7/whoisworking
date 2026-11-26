@@ -221,14 +221,74 @@ struct SetupPromptTests {
     }
 
     @Test func theConfirmationNamesTheFileAndPromisesABackupOnlyForAnExistingFile() {
+        // What you get, which file changes, what is sent and where, and the way back (ONB-01).
+        // The backup is promised only before a change: a repair can find nothing to change.
         #expect(SetupPrompt.confirmation(for: .claudeCode, fileExists: true)
-            == "Adds a hook to 13 events in ~/.claude/settings.json. The file is backed up before it is changed, and other tools' hooks stay as they are.")
+            == "To show Claude Code sessions here, Who's Working adds a hook to ~/.claude/settings.json, backing it up before any change. "
+            + "Claude Code then passes its events, prompts, commands and paths included, to Who's Working on this Mac. "
+            + "Uninstall in Settings removes it.")
+        // A new file has nothing to back up, so no backup is promised.
         #expect(SetupPrompt.confirmation(for: .codex, fileExists: false)
-            == "Creates ~/.codex/hooks.json with a hook for 10 events.")
+            == "To show Codex sessions here, Who's Working creates ~/.codex/hooks.json with a hook in it. "
+            + "Codex then passes its events, prompts, commands and paths included, to Who's Working on this Mac. "
+            + "Uninstall in Settings removes it.")
         #expect(SetupPrompt.confirmation(for: .openCode, fileExists: false)
-            == "Writes Who's Working's own plugin file, ~/.config/opencode/plugins/whoisworking.js. Other plugins stay as they are.")
+            == "To show OpenCode sessions here, Who's Working adds its own plugin file, ~/.config/opencode/plugins/whoisworking.js. "
+            + "The plugin sends status, commands and paths to Who's Working on this Mac, not your prompts. "
+            + "Uninstall in Settings deletes it.")
+        // Any copy that differs from this version is backed up before it is replaced.
         #expect(SetupPrompt.confirmation(for: .openCode, fileExists: true)
-            == "Replaces Who's Working's own plugin file, ~/.config/opencode/plugins/whoisworking.js. A copy you edited is backed up first. Other plugins stay as they are.")
+            == "To show OpenCode sessions here, Who's Working replaces its own plugin file, ~/.config/opencode/plugins/whoisworking.js, and backs up the old copy first. "
+            + "The plugin sends status, commands and paths to Who's Working on this Mac, not your prompts. "
+            + "Uninstall in Settings deletes it.")
+        // Settings' alert says where the sessions show.
+        #expect(SetupPrompt.confirmation(for: .codex, fileExists: false, place: "in the notch")
+            .hasPrefix("To show Codex sessions in the notch, "))
+    }
+
+    @Test func theConfirmationSaysWhatEachAgentsEventsHold() {
+        // Taken from the payloads each agent sends (Tests/Fixtures): Antigravity's PreInvocation holds
+        // the prompt, Cursor's afterAgentThought the agent's thinking.
+        #expect(SetupPrompt.confirmation(for: .antigravity, fileExists: true).contains("passes its events, prompts, commands and paths included,"))
+        #expect(SetupPrompt.confirmation(for: .cursor, fileExists: true).contains("passes its events, commands, paths and the agent's thinking included,"))
+        for agent in AgentKind.allCases {
+            for exists in [true, false] {
+                let text = SetupPrompt.confirmation(for: agent, fileExists: exists)
+                #expect(text.contains("on this Mac"))
+                #expect(!text.contains("events in"), "event counts stay out of the visible text")
+                #expect(!text.contains("\u{2014}") && !text.contains("\u{2013}"))
+                // The card's row has room for about 40 words (whoisworking-copy skill).
+                #expect(text.split(separator: " ").count <= 42, "\(agent) \(exists): \(text.split(separator: " ").count) words")
+            }
+        }
+    }
+
+    @Test func settingsExplainsTheChangeWhatIsSentAndTheWayBackInFull() {
+        // ONB-02: Settings has room for every fact the card leaves out. It shows before the file
+        // exists, so the backup is conditional, and a file Who's Working created stays after uninstall.
+        #expect(SetupPrompt.settingsExplanation(for: .codex)
+            == "To show Codex sessions in the notch, Who's Working adds a hook to ~/.codex/hooks.json. "
+            + "Before it changes an existing file, it backs the file up. "
+            + "Codex then passes its events, prompts, commands and paths included, to Who's Working. "
+            + "These events stay on this Mac, and the hook never approves, blocks or changes anything. "
+            + "Uninstall removes only Who's Working's entries. Your other hooks, the backups and a file it created stay.")
+        #expect(SetupPrompt.settingsExplanation(for: .openCode)
+            == "To show OpenCode sessions in the notch, Who's Working adds its own plugin file, ~/.config/opencode/plugins/whoisworking.js. "
+            + "Before it replaces an older copy, it backs that copy up. "
+            + "The plugin passes OpenCode's status, commands and paths to Who's Working, not the prompts you type. "
+            + "These events stay on this Mac, and the plugin never answers a permission or changes anything. "
+            + "Uninstall deletes only that file, with a backup if you edited it. Other plugins stay as they are.")
+        for agent in AgentKind.allCases {
+            let sentences = SetupPrompt.settingsExplanation(for: agent).split(separator: ". ")
+            #expect(sentences.allSatisfy { $0.split(separator: " ").count <= 25 }, "plain-language sentence length")
+            // The app as a whole does use the network (Check for Updates), so only the events are said to stay.
+            #expect(!SetupPrompt.settingsExplanation(for: agent).contains("Nothing leaves"))
+        }
+    }
+
+    @Test func theConfirmButtonNamesWhatItAdds() {
+        #expect(SetupPrompt.confirmTitle(for: .claudeCode) == "Add hook")
+        #expect(SetupPrompt.confirmTitle(for: .openCode) == "Add plugin")
     }
 
     @Test func onlyAnInstallThatChangedTheFileAndLeftItInstalledCountsAsMadeNow() {

@@ -144,7 +144,7 @@ The repository is being prepared to become public ([spec 21](docs/specs/21-open-
 | What | Where | Read by |
 |---|---|---|
 | Instructions | `AGENTS.md` (`CLAUDE.md` imports it) | Claude Code, Codex, Cursor, OpenCode |
-| Skills: `whoisworking-spec`, `whoisworking-verify-ui`, `whoisworking-design`, `whoisworking-fixtures`, `whoisworking-install`, `whoisworking-contributions` | `.agents/skills/` (`.claude/skills` is a symlink to it) | all four |
+| Skills: `whoisworking-spec`, `whoisworking-verify-ui`, `whoisworking-design`, `whoisworking-fixtures`, `whoisworking-install`, `whoisworking-contributions`, `whoisworking-copy` | `.agents/skills/` (`.claude/skills` is a symlink to it) | all four |
 | Subagents: `spec-reviewer`, `design-reviewer` | `.claude/agents/` | Claude Code |
 | Allowed commands, plugins, hooks | `.claude/settings.json` | Claude Code |
 | Allowed commands | `.codex/rules/whoisworking.rules` (trusted projects only), `.cursor/cli.json`, `opencode.json` | Codex, cursor-agent, OpenCode |
