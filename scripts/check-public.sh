@@ -55,7 +55,7 @@ if len(ACCOUNT) >= 4 and ACCOUNT.lower() not in GENERIC_ACCOUNTS and not os.envi
 
 # Working plans that were tracked before they became local only. The history rewrite takes them
 # out of every commit (OSS-02); until then the history pass lists them.
-ONCE_TRACKED_PLANS = {"docs/release-plan.md", "docs/agent-integrations-plan.md"}
+ONCE_TRACKED_PLANS = {"docs/release-plan.md", "docs/agent-integrations-plan.md", "docs/install-and-setup-review.md"}
 
 # Files that name these patterns in order to describe or test them.
 SELF = {"scripts/check-public.sh"}
