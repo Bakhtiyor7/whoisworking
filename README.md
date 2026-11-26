@@ -17,6 +17,8 @@ curl --proto '=https' --tlsv1.2 -fsSL -o whoisworking-install.sh https://github.
 2. Hover the plug beside the notch, click **Connect** beside an agent, then **Install**.
 3. Send a prompt in that agent. Hover the notch to see the session.
 
+**Until the next release:** the command installs Who's Working 0.1.1, which has no plug and no setup card. In place of step 2, open Who's Working again while it runs to show Settings, and click **Install hooks…** in an agent's section (for OpenCode, **Install plugin…**). The card comes with the next release.
+
 Read [what the command does](#install) before you run it. The app is not notarized, and this route skips the macOS first-launch check.
 
 ## Is it safe?
@@ -133,6 +135,8 @@ scripts/update.sh --install
 ## Connect your agents
 
 Who's Working has to be connected to each agent you use. Until one is, a plug and **Set up** appear beside the notch.
+
+Who's Working 0.1.1, which the command installs today, has no plug or card: use **Install hooks…** in Settings, as in [Quick start](#quick-start). Steps 3 and 4 below still apply.
 
 1. Hover the plug. The **Finish setup** card lists the agents found on this Mac.
 2. Click **Connect** beside an agent. The card says which file will change.
