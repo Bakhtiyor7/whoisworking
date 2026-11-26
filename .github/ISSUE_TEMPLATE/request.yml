@@ -1,0 +1,30 @@
+name: Agent or feature request
+description: Ask for support for another agent, or for something Who's Working does not do yet.
+labels: ["request"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Who's Working shows status only: it never approves or denies anything for an agent, so requests to do that from the notch are out of scope.
+  - type: dropdown
+    id: kind
+    attributes:
+      label: What kind of request
+      options:
+        - Support for another agent
+        - A change to an agent that is already supported
+        - Something else
+    validations:
+      required: true
+  - type: textarea
+    id: need
+    attributes:
+      label: What you want to see or do
+      description: Describe the situation, not only the solution.
+    validations:
+      required: true
+  - type: textarea
+    id: agent-docs
+    attributes:
+      label: For another agent, its hooks or plugin docs
+      description: A link to where the agent documents its hooks, events or plugins, if you know it.

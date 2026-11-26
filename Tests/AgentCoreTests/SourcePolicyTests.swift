@@ -39,6 +39,15 @@ private let launch = [
     #"\bNSUserScriptTask\b"#, #"\bosascript\b"#,
 ].joined(separator: "|")
 
+/// APIs behind the Accessibility, Screen Recording and Input Monitoring permissions. An app outside the
+/// sandbox needs no entitlement to call them, so only the source can show they are not used.
+private let privacyPermissions = [
+    #"\bAXIsProcessTrusted"#, #"\bAXUIElement"#, #"\bCGWindowListCreateImage"#, #"\bimport\s+ScreenCaptureKit\b"#,
+    #"\bSCShareableContent\b"#, #"\bCGRequestScreenCaptureAccess\b"#, #"\bCGPreflightScreenCaptureAccess\b"#,
+    #"\bCGEvent\.tapCreate\b"#, #"\bCGEventTapCreate\b"#, #"\bIOHIDRequestAccess\b"#,
+    #"addGlobalMonitorForEvents"#,
+].joined(separator: "|")
+
 /// Asking macOS to open a file, a URL or an app.
 private let workspaceOpen = #"NSWorkspace\.shared\s*\.open"#
 
@@ -71,6 +80,18 @@ struct SourcePolicyTests {
         // The script's only way out is a Unix socket on this Mac.
         #expect(HookScript.contents.contains("/usr/bin/nc -U"))
         #expect(OpenCodePlugin.contents.contains(#"from "node:net""#))
+    }
+
+    @Test func noSourceAsksForAccessibilityOrScreenRecording() throws {
+        #expect(try sourceFiles(matching: privacyPermissions, in: repoRoot) == [])
+
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("whoisworking-policy-\(UUID().uuidString)")
+        let sources = root.appendingPathComponent("Sources/WhoIsWorking")
+        try FileManager.default.createDirectory(at: sources, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        try Data("let ok = AXIsProcessTrustedWithOptions(nil)\n".utf8).write(to: sources.appendingPathComponent("Spy.swift"))
+        try Data("import ScreenCaptureKit\n".utf8).write(to: sources.appendingPathComponent("Look.swift"))
+        #expect(try sourceFiles(matching: privacyPermissions, in: root) == ["Sources/WhoIsWorking/Look.swift", "Sources/WhoIsWorking/Spy.swift"])
     }
 
     /// The tripwires above only mean something if they trip.

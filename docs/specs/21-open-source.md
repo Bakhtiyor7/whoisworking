@@ -28,7 +28,7 @@ This spec owns what the repository holds, who may change it, and what a user can
 
 - how a release is built and published step by step: specs [13](13-distribution.md) and [16](16-signing-and-ci.md);
 - the install script: spec [20](20-install-command.md);
-- the wording of user-facing text and the setup flow inside the app: spec [22](22-setup-and-first-use.md), the `whoisworking-copy` skill and [`../distribution-rules.md`](../distribution-rules.md).
+- the wording of user-facing text and the setup flow inside the app: spec 22 (`22-setup-and-first-use.md`), the `whoisworking-copy` skill and `docs/distribution-rules.md`. These three arrive with the `setup-copy-pass` branch, so they are named here and not linked until it is merged.
 
 "Requirements in other specs that change" lists what those must change for this spec to hold.
 
@@ -38,7 +38,7 @@ This spec owns what the repository holds, who may change it, and what a user can
 
 ### OSS-01 Licence
 
-The licence is the GNU General Public License, version 3. The repository root has a `LICENSE` file with its full text, and the README names it in one line and says what it means for a reader: anyone may use, change and share the app, and a copy that is shared must come with its source under the same licence. `scripts/bundle.sh` copies it into `WhoIsWorking.app/Contents/Resources/` beside the Lobe Icons licence.
+The licence is the GNU General Public License, version 3 only (`GPL-3.0-only`). The repository root has a `LICENSE` file with its full text, and the README names it in one line and says what it means for a reader: anyone may use, change and share the app, and a copy that is shared must come with its source under the same licence. `scripts/bundle.sh` copies it into `WhoIsWorking.app/Contents/Resources/` beside the Lobe Icons licence.
 
 A contribution is accepted under the same licence; there is no contributor agreement.
 
@@ -92,7 +92,7 @@ Settled with the user on 2026-11-26:
 | Ended session ids were kept without limit, and an id could be any length | Fixed: the newest 1,000 and 256 characters, RED-21 and RED-22 |
 | The `WHOISWORKING_*` debug variables work in release builds | Stated, not changed. Whoever can set the app's environment already runs programs as the user. `docs/trust.md` lists the variables under diagnostics (OSS-12), and `SECURITY.md` lists the point under "Known limits" (OSS-22) |
 
-Verified by: the tests named by INS-18, INS-19, ING-11, ING-12, RED-21 and RED-22, all passing on 2026-11-26. Still open: the two lines in `SECURITY.md` and `docs/trust.md`, which do not exist yet
+Verified by: the tests named by INS-18, INS-19, ING-11, ING-12, RED-21 and RED-22, all passing on 2026-11-26. The debug variables are listed under Diagnostics in `docs/trust.md`, pinned by `TrustPageTests/everyDebugVariableInTheSourceIsListed`, and under Known limits in `SECURITY.md` (2026-11-26). `SECURITY.md` also states two limits the review did not list: any process running as the user can send events to the socket, and the app is not notarized
 
 **One public home**
 
@@ -194,8 +194,10 @@ A separate table covers diagnostics, which are off unless a `WHOISWORKING_*` var
 
 Each row has a way to see it on the reader's Mac (the hook preview diff, the hook script's text, `codesign -d --entitlements -` on the app) or a link to the test that pins it. The page starts with the three checks that take under a minute. It does not offer a momentary reading, such as open network connections at one instant, as proof that something never happens.
 
-Planned tests: `TrustPageTests/everyFileInstallAndUninstallTouchIsListed` (install and uninstall run for every agent in a temporary home; each path created, changed or removed appears in the page), `TrustPageTests/theNetworkHostIsTheOneTheUpdateCheckUses`.
-Verified by (planned): every command on the page run on the development Mac at each release; the entitlements of the release bundle read from the DMG.
+The diagnostics table lists every `WHOISWORKING_*` variable the source reads, and the page names every preference key the app saves.
+
+Tests: `TrustPageTests/everyFileInstallAndUninstallTouchIsListed` (install and uninstall run for every agent in a temporary home through the hooks command; each path created, changed or removed appears in the page, backups by their pattern), `TrustPageTests/theNetworkHostIsTheOneTheUpdateCheckUses` (the network section names the update check's address and download page, and no other host), `TrustPageTests/everyDebugVariableInTheSourceIsListed` (each name exactly), `TrustPageTests/everyPreferenceKeyInTheSourceIsListed` (keys written as literals after forKey:, a …Key constant or @AppStorage; a key built at run time is not found). The network test sees only https addresses.
+Verified by: on 2026-11-26, on the development Mac, against `build/WhoIsWorking.app` and `/Applications/WhoIsWorking.app` (both 0.1.1, ad-hoc signed): `codesign -d --entitlements -` printed only the executable path, `plutil -p … | grep UsageDescription` printed nothing, and the hook script read from the source has 17 lines that run only `cat` and `/usr/bin/nc`. Still planned: every command on the page run at each release, and the entitlements read from the release DMG.
 
 ### OSS-13 Tripwires in the source
 
@@ -205,8 +207,9 @@ Tests fail when the source stops matching the trust page. They are tripwires tha
 - No source file starts a program (`Process`, `posix_spawn`, `system`, AppleScript), and `NSWorkspace` opens something only in `Updates.swift` and `AppFocuser.swift`.
 - `Package.swift` declares no dependency and no plugin.
 - The hook script and the OpenCode plugin name no host and no URL, and the hook script runs only `cat` and `/usr/bin/nc`.
+- No source file uses an API that needs Accessibility, Screen Recording or Input Monitoring (`AXIsProcessTrusted`, `AXUIElement`, `CGWindowListCreateImage`, ScreenCaptureKit, `CGRequestScreenCaptureAccess`, event taps, `IOHIDRequestAccess`). An app outside the sandbox needs no entitlement for these, so the entitlements cannot show it.
 
-Tests: `SourcePolicyTests/onlyTheUpdateCheckUsesTheNetwork`, `SourcePolicyTests/onlyTwoFilesAskMacOSToOpenSomething`, `SourcePolicyTests/thePackageHasNoDependenciesOrPlugins`, `SourcePolicyTests/theHookScriptAndPluginNameNoHost`, `SourcePolicyTests/aNetworkCallOrALaunchInANewFileIsCaught`
+Tests: `SourcePolicyTests/onlyTheUpdateCheckUsesTheNetwork`, `SourcePolicyTests/onlyTwoFilesAskMacOSToOpenSomething`, `SourcePolicyTests/thePackageHasNoDependenciesOrPlugins`, `SourcePolicyTests/theHookScriptAndPluginNameNoHost`, `SourcePolicyTests/aNetworkCallOrALaunchInANewFileIsCaught`, `SourcePolicyTests/noSourceAsksForAccessibilityOrScreenRecording`
 
 **Docs a user can follow**
 
@@ -225,7 +228,7 @@ The README is written for someone who wants to use the app, in this order:
 
 A reader gets from the top to a working, connected app without opening another page. Developer material that is in the README today moves to `docs/` unchanged in meaning (OSS-15). The layout and the recording are design decisions: two or three options are shown to the user as rendered pages before one is built.
 
-Verified by (planned): a person who has not seen the project installs and connects one agent using only the README, and says where they hesitated.
+Verified by: on 2026-11-26 the user chose option B ("Quick start first") from three rendered options; `README.md` was built from it, with the developer material moved to `docs/development.md` and `docs/agents.md`, and `scripts/check-docs.sh` passes on it. It is written for the first release from the public repository, which has the setup card; until then its command installs 0.1.1 from `whoisworking-releases` (DST-12, DST-21). The recording is still a placeholder comment. Still planned: a person who has not seen the project installs and connects one agent using only the README, and says where they hesitated.
 
 ### OSS-15 Docs layout
 
@@ -241,18 +244,19 @@ Verified by (planned): a person who has not seen the project installs and connec
 
 Every user-facing page says in its first lines who it is for and what the reader will have at the end. Steps are numbered and each has one action. Each command is alone in its own `bash` block and can be pasted as it is. A statement about safety or privacy has a check beside it.
 
-Verified by (planned): `scripts/check-docs.sh` (OSS-16) and a read-through at each release.
+Verified by: `docs/trust.md`, `docs/agents.md`, `docs/development.md`, `CONTRIBUTING.md` and `SECURITY.md` written on 2026-11-26, each opening with who it is for and what the reader will have; `scripts/check-docs.sh` passes on them. `README.md` followed on the same day (OSS-14). Still planned: a read-through at each release.
 
 ### OSS-16 Docs are checked
 
 `scripts/check-docs.sh` runs in CI, makes no network request, and fails when:
 
-- a relative link or anchor in a Markdown file does not resolve;
-- the install command in the README differs from the one the tests pin (DST-12);
-- `README.md`, `docs/trust.md` or `docs/agents.md` says the source is private, or names a version where it should name the current one. Release notes and plans are history and are not checked for this;
-- a current user-facing page uses a phrase OSS-23 rules out.
+- a relative link or anchor in a Markdown file does not resolve. Anchors follow GitHub's heading slugs. Links inside code are not links. `docs/local/`, `build/` and `.build/` are not checked;
+- an install command in the README (a `curl` line that fetches `install.sh`) is neither the one in DST-12 nor its download half, the part before ` && ` that the three-step form of OSS-14 runs on its own;
+- `README.md`, `docs/trust.md` or `docs/agents.md` says the source is private, or names a release of Who's Working (`WhoIsWorking-X.Y.Z.dmg`, a `/vX.Y.Z/` path or "Who's Working X.Y.Z") other than the version in `Resources/Info.plist`. Release notes and plans are history and are not checked for this;
+- a current user-facing page (`README.md`, `SECURITY.md`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `docs/trust.md`, `docs/agents.md`, `docs/development.md`) uses a phrase OSS-23 rules out, unless the sentence denies it ("does not prove the code is harmless");
+- any of those pages still holds the placeholder `TO-BE-DECIDED`.
 
-Planned check: the script run on a tree with each fault introduced.
+Tests: `DocsCheckTests/aCleanTreePasses`, `DocsCheckTests/aBrokenLinkOrAnchorFails`, `DocsCheckTests/anInstallCommandThatDiffersFromTheSpecFails`, `DocsCheckTests/theDownloadHalfOfTheInstallCommandPasses`, `DocsCheckTests/aPageThatCallsTheSourcePrivateOrNamesAnOldReleaseFails`, `DocsCheckTests/aRuledOutPhraseFailsAndItsDenialPasses`, `DocsCheckTests/aPlaceholderLeftForPublicationFails`
 
 **A repository that is safe to run**
 
@@ -263,9 +267,10 @@ Planned check: the script run on a tree with each fault introduced.
 - Every action is pinned to a full commit SHA.
 - Jobs that build or publish a release use no cache and no artifact written by another workflow run.
 - zizmor checks the workflow files in CI.
-- CI is green on `master` before publication. The last two runs on the private remote failed: `HookScriptTests/forwardsStdinWithAnAgentHeader` expects a hook script run to take under 1.0 s and took 1.02 s and 1.07 s while the other suites were starting. Since 2026-11-26 the test takes the fastest of up to three runs against the same bound, which still fails a server that never closes early. Not yet confirmed on a runner.
+- CI is green on `master` before publication. The last two runs on the private remote failed: `HookScriptTests/forwardsStdinWithAnAgentHeader` expects a hook script run to take under 1.0 s and took 1.02 s and 1.07 s while the other suites were starting. Since 2026-11-26 the test takes the fastest of up to three runs against the same bound, which still fails a server that never closes early. Confirmed on a runner on 2026-11-26: CI on pull request 1 (commit 83577d8, which has this change) passed, job `test` on `macos-15`. `master` has it once that pull request is merged.
 
-Planned check: zizmor passes. Checked on 2026-11-26: `scripts/check-public.sh` refused `actions/checkout@v4`; the action is now pinned to the commit that tag pointed at, and the script runs in CI with `--tree-only`.
+Checked on 2026-11-26: `scripts/check-public.sh` refused `actions/checkout@v4`; the action is now pinned to the commit that tag pointed at, and the script runs in CI with `--tree-only`. It now also refuses a workflow whose top-level `permissions` is not `contents: read` alone (tried with a probe workflow holding `permissions: write-all`). The checkouts set `persist-credentials: false`. CI has a `workflows` job that installs zizmor 1.33.1, pinned by version and wheel SHA-256 in `.github/zizmor-requirements.txt`, and runs it with `--offline`.
+Verified by (planned): the `workflows` job passing on GitHub. zizmor was not run on the development Mac, because installing it there was not approved.
 
 ### OSS-18 Repository settings
 
@@ -282,7 +287,10 @@ Planned check: zizmor passes. Checked on 2026-11-26: `scripts/check-public.sh` r
 
 The settings are made on the new repository while it is still empty, and checked, before the history is pushed to it.
 
-Verified by (planned): the script's output after the settings are made, recorded here.
+`.github/dependabot.yml` asks for weekly updates of the pinned actions. The release environment is named `release`.
+
+Checked on 2026-11-26: `scripts/check-repo-settings.sh Bakhtiyor7/agent-sessions-macos` ran every read on the private repository and changed nothing. 2 of 15 as expected (the Actions token is read-only and cannot approve pull requests; there are no secrets). Not readable there: secret scanning, push protection, private vulnerability reporting, fork approval and both rulesets, which GitHub offers on a private repository only with GitHub Pro. Settable there, and not yet set: SHA pinning required, Dependabot alerts, immutable releases.
+Verified by (planned): the script's output on `Bakhtiyor7/whoisworking` after the settings are made, recorded here.
 
 ### OSS-19 Outside changes are read before they run
 
@@ -293,11 +301,11 @@ The reason is specific to this repository. `swift build` runs `Package.swift`, a
 `.github/CODEOWNERS` lists the trust-critical paths with the maintainer as owner, so the ruleset of OSS-18 asks for the maintainer's review when one changes:
 
 - what runs on the maintainer's Mac or in CI: `.github/`, `.claude/`, `.codex/`, `.cursor/`, `.agents/`, `.vscode/`, `opencode.json`, `AGENTS.md`, `CLAUDE.md`, `Package.swift`, `scripts/`;
-- what the app writes to users' files or sends: `Sources/AgentCore/HookInstaller.swift`, `HooksCommand.swift`, `Ingest.swift`, `OpenCode.swift`, `UpdateCheck.swift`, `Sources/WhoIsWorking/Updates.swift`, `Settings.swift`, `Resources/Info.plist`.
+- what the app writes to users' files or sends: `Sources/AgentCore/HookInstaller.swift`, `OrderedJSON.swift` (it writes the bytes of other tools' hook files), `HooksCommand.swift`, `Ingest.swift`, `OpenCode.swift`, `UpdateCheck.swift`, `Sources/WhoIsWorking/Updates.swift`, `Settings.swift`, `Resources/Info.plist`.
 
 `AGENTS.md` and the `whoisworking-contributions` skill state the rule for agents.
 
-Planned check: a test pull request from a fork that edits `.claude/settings.json`: its workflow waits for approval, and it cannot merge without the maintainer's review.
+Verified by: `.github/CODEOWNERS` written on 2026-11-26 with every path above, each checked to exist in the tree; `AGENTS.md` ("What is published") and the `whoisworking-contributions` skill state the rule. Still planned: a test pull request from a fork that edits `.claude/settings.json`: its workflow waits for approval, and it cannot merge without the maintainer's review.
 
 **Working with other people**
 
@@ -309,7 +317,7 @@ The bug form has required fields for the app version, the macOS version and the 
 
 It has no `GOVERNANCE` or `SUPPORT` file, and no `FUNDING.yml` until sponsorship is set up.
 
-Verified by (planned): GitHub's Community Standards page for the repository.
+Verified by: on 2026-11-26 the files exist: `CONTRIBUTING.md`, `SECURITY.md`, `CODE_OF_CONDUCT.md` (the Contributor Covenant 2.1, adopted by reference), `.github/CODEOWNERS`, `.github/ISSUE_TEMPLATE/bug.yml` (required app, macOS and agent versions, and the install route; a note to leave out private paths, prompts and session text), `.github/ISSUE_TEMPLATE/request.yml`, `.github/ISSUE_TEMPLATE/config.yml` and `.github/pull_request_template.md`. Still planned: GitHub's Community Standards page for the public repository, and the forms opened there.
 
 ### OSS-21 Contribution rules
 
@@ -317,20 +325,25 @@ Verified by (planned): GitHub's Community Standards page for the repository.
 
 - the project has one maintainer; a review can take weeks;
 - pull requests are open to anyone: fixes to docs and small fixes to code are welcome directly; open an issue before anything larger, so no one writes a change that will be declined;
-- the order of work is spec, failing test, code, and the three commands to run;
+- the order of work is spec, failing test, code, and the four checks to run;
 - no third-party dependency; the hook installer and hook script contracts (specs 05 and 06) do not bend;
 - help from AI tools is welcome and must be stated, and the author must be able to explain every line;
 - what is out of scope (approving or denying from the notch).
+
+Verified by: `CONTRIBUTING.md` written on 2026-11-26 with each point above, and the four checks
 
 ### OSS-22 Security reports
 
 `SECURITY.md` says: report through GitHub's private vulnerability reporting, not a public issue; only the latest release is supported; what is in scope (the hook installer, the hook script and plugin, the socket, the install script, the update check, the release workflow); when to expect a first answer; that there is no bounty; "Known limits" (OSS-03); and what happens to a bad release (OSS-24).
 
+Verified by: `SECURITY.md` written on 2026-11-26 with each point above; the first answer is promised within 7 days
+
 ### OSS-23 Honest wording
 
 No current page, release note or post says or implies that the app is safe because the source is public, that Apple has checked it, or that a pass of OSS-08 means the code is harmless. Every release's notes say whether that release is notarized and what that means for the reader. The README says that the project is built with coding agents under the maintainer's review, with the specs, the tests and the commit trailers as the record.
 
-Planned check: `scripts/check-docs.sh` refuses a short list of phrases; a read-through at each release.
+Tests: `DocsCheckTests/aRuledOutPhraseFailsAndItsDenialPasses` (the docs check refuses a short list of phrases)
+Verified by (planned): a read-through at each release.
 
 ## Requirements in other specs that change
 
@@ -367,7 +380,7 @@ Settled with the user on 2026-11-26.
 
 | # | Decision | Answer |
 |---|---|---|
-| D1 | Licence | GPL-3.0, no contributor agreement (OSS-01) |
+| D1 | Licence | GPL-3.0-only, no contributor agreement (OSS-01). "Only" chosen by the user on 2026-11-26 |
 | D2 | Where it lives | One public repository, `Bakhtiyor7/whoisworking`, with a bridge release in the old releases repository (OSS-04 to OSS-06) |
 | D3 | History | Kept, after the rewrite of OSS-02 |
 | D4 | Pull requests | Open to anyone; issue first for anything larger than a small fix (OSS-21) |
@@ -379,7 +392,7 @@ A consequence of D7 that changes how D2 is carried out: the public repository is
 
 ## Open questions
 
-1. `GPL-3.0-only` or `GPL-3.0-or-later`? Proposed: only. The maintainer can still relicense their own code later; "or later" accepts terms that do not exist yet.
+1. ~~`GPL-3.0-only` or `GPL-3.0-or-later`?~~ Answered by the user on 2026-11-26: only. The maintainer can still relicense their own code later; "or later" would accept terms that do not exist yet.
 2. Is "Who's Working" free of conflicts for a Mac app? The name changed once already for this reason.
 3. The other tracked files that could count as working notes: `docs/spike/main.swift` and `docs/releases-repo/README.md`. Proposed: both stay; the second is replaced by the pointer README of OSS-06.
 4. `docs/distribution-rules.md` and specs 13 and 20 cite working plans that become local only. What they need from those plans is moved into them before publication (OSS-02); who does it is settled when that work starts.

@@ -37,14 +37,18 @@ The script is downloaded completely before it runs, over HTTPS only (also after 
 
 Given a Mac that meets DST-14 and has no WhoIsWorking installed, when the user runs the command, then `/Applications/WhoIsWorking.app` holds that release and the script asked for no password. The script then asks macOS to open the app and says so; if that fails, it says the app is installed and that opening failed.
 
+Planned (spec 21, OSS-05): from the first release in `Bakhtiyor7/whoisworking`, the command's address becomes `https://github.com/Bakhtiyor7/whoisworking/releases/latest/download/install.sh`. The block above, the README and `scripts/check-docs.sh` (which compares the README's command with the block above, OSS-16) change in the same edit. The old repository's `latest` command keeps installing the bridge release (OSS-06).
+
 Tests: `InstallScriptTests/aFreshInstallPutsTheReleaseInPlaceAndLeavesNothingBehind`
 Verified by: the published 0.1.1 command run on the development Mac (macOS 27.2.1) on 2026-11-24, from an agent's shell and not pasted into Terminal: 0.1.0 was running from Applications, and 1.2 s later 0.1.1 build 2 was installed with a valid signature and no quarantine attribute, running as a new process, with no password asked. This Mac already had the app, so it says nothing about a first install. Still open: a tester on a Mac that never had the app runs the pasted command on macOS 15 and on macOS 26 and reports which dialogs appeared
 
 ### DST-13 The script is a release asset pinned to its release
 
-`scripts/install.sh` in the private repo is a template with placeholders. `scripts/release.sh` renders it with the release's version and the SHA-256 of its DMG and publishes the result as the release asset `install.sh`. A release then has exactly two assets: `WhoIsWorking-X.Y.Z.dmg` and `install.sh`.
+`scripts/install.sh` in the source repo is a template with placeholders. `scripts/release.sh` renders it with the release's version and the SHA-256 of its DMG and publishes the result as the release asset `install.sh`. A release then has exactly two assets: `WhoIsWorking-X.Y.Z.dmg` and `install.sh`.
 
 The published script requests one URL, built from constants and its pinned version: `https://github.com/Bakhtiyor7/whoisworking-releases/releases/download/vX.Y.Z/WhoIsWorking-X.Y.Z.dmg`. GitHub redirects that to its asset host (`release-assets.githubusercontent.com` today); the script follows redirects over HTTPS only and ignores `~/.curlrc`. It makes no GitHub API request. The download has a connect timeout (15 s) and an overall time limit (600 s), and a failure names what failed (no network, an HTTP error, a short transfer, a full disk, a time-out).
+
+Planned (spec 21, OSS-05): the script requests `https://github.com/Bakhtiyor7/whoisworking/releases/download/vX.Y.Z/WhoIsWorking-X.Y.Z.dmg`, and the fallback page it names (`PAGE` in `scripts/install.sh`) is that repository's release page. The bridge release in `whoisworking-releases` is rendered once with the new repository's address, so its copy downloads from the new repository (OSS-06).
 
 What the checks prove, to be stated in the script's header and the README: the checksum catches a wrong, truncated or corrupted DMG once the script is trusted. It does not protect against a compromised releases repo, where the script could be replaced too. The ad-hoc signature check proves the bundle is intact, not who made it.
 
@@ -134,11 +138,14 @@ A real run:
 - uploads both assets to the draft by explicit path, then checks both names and SHA-256 digests on the draft before the private tag is pushed and the draft is published;
 - on a re-run, gives the draft the notes it just showed, adds an asset the draft is missing and refuses a draft whose bytes differ. For a release that is already published it changes nothing and runs the same checks, the anonymous downloads included. A failed lookup of the release's state stops the run; only "release not found" means there is none;
 - after publishing, downloads both assets anonymously through the `latest/download` URLs and compares their digests with the local files, with bounded retries;
+- planned (spec 21): a rerun never rebuilds a published release, it only verifies; a rerun for a partial draft attaches the bytes the first run attested, found by run id and digest, and refuses a draft whose files differ (OSS-07, OSS-08);
 - never reuses the output of a dry run, which may come from a tree with uncommitted changes: a dry run builds into `build/release/X.Y.Z-dry-run/`, a real run into `build/release/X.Y.Z/`, and neither touches the other's folder. Before this, a dry run stamped its output with `HEAD`, so a later real run at the same commit would have published it.
 
 Verified by: `scripts/release.sh 0.1.0 --dry-run` on 2026-11-23 for the rendering and the install run; release 0.1.1 on 2026-11-24 for a fresh draft with both assets, the digest check on the draft, publishing, and the anonymous check (the public API then listed `v0.1.1` as latest with both assets, their digests equal to the local files). Still open: the re-run paths (a draft that lacks a file, a release that is already published), which that release did not need
 
 ### DST-21 Public README and release notes
+
+Planned (spec 21, OSS-06, OSS-14): the public README becomes `README.md` of `Bakhtiyor7/whoisworking`, and `docs/releases-repo/README.md` is replaced by a pointer to it once the bridge is checked. The rules below apply to that README. The old repository's install instructions stay published until the new repository's files pass them.
 
 `docs/releases-repo/README.md` gains the command only after a release with `install.sh` is published, DST-20's anonymous check has passed for it, and the clean-machine checks under "Planned verification" are recorded. Until then `…/latest/download/install.sh` answers 404 (it does today, with 0.1.0 as latest). Then the README and each later release's notes:
 

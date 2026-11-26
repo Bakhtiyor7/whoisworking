@@ -1,0 +1,9 @@
+# Dependabot proposes updates to the pinned actions (OSS-18). Its pull requests are outside code
+# and are read like any other before they are merged (OSS-19).
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5

@@ -4,7 +4,7 @@ Guidance for coding agents (Codex, Claude Code and others) working in this repos
 
 ## What this is
 
-WhoIsWorking (shown to users as "Who's Working"; called Perch until 2026-11-22, and the repo folder is still `perch`) is a macOS notch app that shows the status of Claude Code, Codex, Cursor, OpenCode and Antigravity sessions on this Mac. v1 is status only: it never approves or denies anything, and the hook script never makes a decision. `README.md` is the user-facing description of behaviour (install steps, Codex coverage and gaps); update it when behaviour changes. `docs/plan.md` holds the research and the settled design (sizes, hover timings, colours). `docs/specs/` holds the requirements; see Specs below.
+WhoIsWorking (shown to users as "Who's Working"; called Perch until 2026-11-22, and the repo folder is still `perch`) is a macOS notch app that shows the status of Claude Code, Codex, Cursor, OpenCode and Antigravity sessions on this Mac. v1 is status only: it never approves or denies anything, and the hook script never makes a decision. `README.md` is for users (install, connect, update, uninstall), `docs/agents.md` says what each agent shows and does not, and `docs/trust.md` lists every file the app touches and its one network request (`TrustPageTests` pins it); update them when behaviour changes. `docs/development.md` is the contributor guide. `docs/plan.md` holds the research and the settled design (sizes, hover timings, colours). `docs/specs/` holds the requirements; see Specs below.
 
 ## Commands
 
@@ -16,6 +16,8 @@ swift test --filter ReducerTests                                   # one suite, 
 swift test --filter ReducerTests/permissionRequestMeansNeedsApproval   # one test
 swift build                                                        # debug build of both targets
 scripts/check-specs.sh                                             # specs and tests name each other
+scripts/check-docs.sh                                              # Markdown links and anchors, install command, wording (OSS-16)
+scripts/check-repo-settings.sh [owner/repo]                        # reads the GitHub settings of OSS-18 with gh api, changes nothing
 scripts/check-public.sh --tree-only                                # nothing private in tracked files, workflows pinned (no flag: all history too)
 scripts/bundle.sh                                                  # release build -> build/WhoIsWorking.app (ad-hoc signed)
 scripts/bundle.sh debug                                            # same, debug configuration
@@ -153,4 +155,4 @@ Claude Code hooks, in `scripts/agent/`:
 - `check-swift.sh` (Stop): when sources, tests or specs changed since the last passing run, it runs `swift build`, `swift test` and `scripts/check-specs.sh`, and sends failures back to the agent.
 - `guard-hooks-cli.sh` (PreToolUse, Bash): blocks `WhoIsWorking hooks install|uninstall` without `--settings`, so the user's real hook files are never edited from an agent session.
 
-Other agents have no such hooks here: run the same three commands before reporting work as done, and always pass `--settings <copy>` to the hooks CLI.
+Other agents have no such hooks here: run the same three commands, and `scripts/check-docs.sh` when docs changed, before reporting work as done, and always pass `--settings <copy>` to the hooks CLI.

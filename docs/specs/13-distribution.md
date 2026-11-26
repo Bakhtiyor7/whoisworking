@@ -8,7 +8,9 @@ Code: `Sources/AgentCore/UpdateCheck.swift`, `Sources/AgentCore/RunLocation.swif
 
 Let WhoIsWorking be installed from a download and tell the user when a newer build exists. This spec is stage 5a: an ad-hoc signed, not notarized DMG for Apple silicon. Stage 5b (Developer ID) and CI releases are in [16 Signing and CI release](16-signing-and-ci.md).
 
-The source stays in the private repo `Bakhtiyor7/agent-sessions-macos`. Builds are published as GitHub Releases in the public repo `Bakhtiyor7/whoisworking-releases`, which holds only a README.
+Today the source is in the private repo `Bakhtiyor7/agent-sessions-macos`, and builds are published as GitHub Releases in the public repo `Bakhtiyor7/whoisworking-releases`, which holds only a README.
+
+This changes with [21 Open source](21-open-source.md): the source, the issues and the releases move to one public repository, `Bakhtiyor7/whoisworking` (OSS-04, OSS-05). The private repo is archived, and `whoisworking-releases` gets one last bridge release for 0.1.x apps and is archived too (OSS-06). Each requirement below that changes says so in a "Planned (spec 21)" paragraph; its tests change with the code, test first, in the first release from the new repository.
 
 ## Requirements
 
@@ -17,6 +19,8 @@ The source stays in the private repo `Bakhtiyor7/agent-sessions-macos`. Builds a
 `scripts/release.sh X.Y.Z` builds `WhoIsWorking.app` (release configuration, Apple silicon, ad-hoc signed), puts it in `WhoIsWorking-X.Y.Z.dmg` with an Applications link, and publishes it as release `vX.Y.Z` of `Bakhtiyor7/whoisworking-releases`. Release 0.1.0 has exactly one asset, the DMG. Later releases have exactly two: the DMG and the `install.sh` rendered for it ([20 Install command](20-install-command.md), DST-13).
 
 Verified by: `scripts/release.sh --dry-run`, then the first published release downloaded in a browser and installed into Applications
+
+Planned (spec 21, OSS-05, OSS-07): a release is published in `Bakhtiyor7/whoisworking`, built by its release workflow from a tag `vX.Y.Z` on `master`, attested, attached to a draft by a job that needs the maintainer's approval, and published by hand. The first such release is also published in `whoisworking-releases` as the bridge (OSS-06). The assets stay the same two files.
 
 ### DST-02 Version
 
@@ -39,6 +43,8 @@ Versions compare numerically, so 0.10.0 is newer than 0.9.0. The Download button
 Tests: `UpdateCheckTests/versionsParseWithOrWithoutV`, `UpdateCheckTests/versionsCompareNumerically`, `UpdateCheckTests/tagsThatAreNotVersionsAreRejected`, `UpdateCheckTests/aNewerReleaseIsAvailable`, `UpdateCheckTests/theSameOrAnOlderReleaseIsUpToDate`, `UpdateCheckTests/noPublishedReleaseIsReported`, `UpdateCheckTests/rateLimitsAreReported`, `UpdateCheckTests/brokenResponsesAreFailures`, `UpdateCheckTests/theDownloadPageIsBuiltFromTheVersion`, `UpdateCheckTests/aRealGitHubResponseIsRead`
 Verified by: Settings snapshots for each outcome (`WHOISWORKING_FAKE_LATEST`)
 
+Planned (spec 21, OSS-05): the check asks `https://api.github.com/repos/Bakhtiyor7/whoisworking/releases/latest`, and Download opens `https://github.com/Bakhtiyor7/whoisworking/releases/tag/v<version>`. `UpdateCheckTests` and the network section of `docs/trust.md` change in the same edit; `TrustPageTests/theNetworkHostIsTheOneTheUpdateCheckUses` reads the constants and fails until the page matches. Whether the request may follow a redirect to another host is open question 4.
+
 ### DST-04 Launch at login
 
 Settings has an "Open at login" switch (`SMAppService`). It is available only when the app runs from an installed location (see DST-10).
@@ -53,7 +59,7 @@ Verified by: 0.1.1 installed over 0.1.0 with hooks installed; both agents still 
 
 ### DST-06 Clean removal
 
-Removing WhoIsWorking is documented in the public README: uninstall the hooks from Settings first, then delete the app. A user who deletes the app first is left with hooks that do nothing and exit 0 (ING-07).
+Removing WhoIsWorking is documented in the public README: uninstall the hooks from Settings first, then delete the app. From the move to one repository (spec 21), the public README is that repository's `README.md` (OSS-14), and `docs/trust.md` lists every file to remove. A user who deletes the app first is left with hooks that do nothing and exit 0 (ING-07).
 
 Verified by: public README
 
@@ -69,6 +75,8 @@ Verified by: public README
 - otherwise prints what it will publish and asks for confirmation, then creates a draft release with the DMG and `install.sh`, pushes `master` and tag `vX.Y.Z` to the private repo only (`origin`; the public repo is never a git remote), publishes the draft as latest, and checks anonymously that `/releases/latest` returns the new tag and serves both files.
 
 A re-run after a failure continues from the existing draft or tag when they match; DST-20 has the rules for a draft that lacks a file and for a release that is already published. Release notes come from a hand-written `docs/release-notes/X.Y.Z.md`.
+
+Planned (spec 21): the script splits into a build-and-check part that runs the same on the maintainer's Mac and on a runner, and a publish part for the release job (OSS-07). On a runner it has no branch-name check (a tag checkout has a detached HEAD), no prompt, no `--target main`, no tag creation and no push. It checks that the tag is an ancestor of `master`, that the version matches `Info.plist`, and that the version and build number are greater than the last release's, starting from `v0.1.1` build 2 and failing when that baseline cannot be read. "No release yet" in the new repository is not an error for the first release there. `scripts/release.sh X.Y.Z --dry-run` stays as the local rehearsal; a release is no longer published from the Mac.
 
 Verified by: `scripts/release.sh 0.1.0 --dry-run`, then the 0.1.0 release; the two-asset steps by the 0.1.1 release on 2026-11-24
 
@@ -87,6 +95,7 @@ Verified by: `scripts/release.sh 0.1.0 --dry-run`
 ## Open questions
 
 1. ~~Is Sparkle approved as a dependency?~~ Answered 2026-11-22: not in 5a. A manual update check (DST-03) instead; Sparkle is reconsidered with 5b.
-2. ~~Which GitHub account and repo name?~~ Answered 2026-11-22: private code repo `Bakhtiyor7/agent-sessions-macos`; public releases repo `Bakhtiyor7/whoisworking-releases`.
+2. ~~Which GitHub account and repo name?~~ Answered 2026-11-22: private code repo `Bakhtiyor7/agent-sessions-macos`; public releases repo `Bakhtiyor7/whoisworking-releases`. Changed 2026-11-26 (spec 21, D2): one public repository, `Bakhtiyor7/whoisworking`, for the source and the releases.
+4. Should the update check refuse a redirect to a host other than `api.github.com`? Today `URLSession` follows redirects. Proposed: refuse, and report it as a failure. Settled before the first release from the new repository (spec 21).
 3. ~~Is "Perch" the final name?~~ Answered 2026-11-22: no. "Perch" is taken by several Mac apps, two of them agent monitors. The app is now **WhoIsWorking** (shown to users as "Who's Working").
 4. ~~First version?~~ Answered 2026-11-22: `0.1.0`, build 1.

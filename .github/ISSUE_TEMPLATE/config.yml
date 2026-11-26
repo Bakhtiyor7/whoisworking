@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Ask a question
+    url: https://github.com/Bakhtiyor7/whoisworking/discussions
+    about: Questions about installing, connecting agents or how something works.
+  - name: Report a security problem
+    url: https://github.com/Bakhtiyor7/whoisworking/security/advisories/new
+    about: Reported privately. Please do not open a public issue for it.

@@ -59,7 +59,8 @@ ONCE_TRACKED_PLANS = {"docs/release-plan.md", "docs/agent-integrations-plan.md"}
 
 # Files that name these patterns in order to describe or test them.
 SELF = {"scripts/check-public.sh"}
-LOCAL_MENTION_OK = SELF | {".gitignore", "docs/specs/21-open-source.md", "AGENTS.md"}
+# DocsCheckTests puts a note under docs/local/ in a temporary tree to show that check-docs skips it.
+LOCAL_MENTION_OK = SELF | {".gitignore", "docs/specs/21-open-source.md", "AGENTS.md", "Tests/AgentCoreTests/DocsCheckTests.swift"}
 
 def scan_text(scope, path, text):
     for m in PRIVATE_HOSTS.finditer(text):
@@ -100,6 +101,9 @@ for path in tracked:
 for path in tracked:
     if not re.match(r"\.github/workflows/[^/]+\.ya?ml$", path) or not os.path.isfile(path):
         continue
+    # The top-level token is read-only; a job that needs more raises it for itself.
+    if not re.search(r"^permissions:\n  contents: read\n(?![ \t])", open(path, encoding="utf-8").read(), re.M):
+        found("tree", "workflow without top-level 'permissions: contents: read' and nothing more", path)
     for n, line in enumerate(open(path, encoding="utf-8"), 1):
         if re.search(r"\b(pull_request_target|workflow_run)\b", line.split("#")[0]):
             found("tree", "forbidden workflow trigger", f"{path}:{n}: {line.strip()}")

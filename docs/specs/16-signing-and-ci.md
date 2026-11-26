@@ -17,8 +17,12 @@ When an Apple Developer Program membership exists: Developer ID signature, harde
 
 A tag builds and tests on CI, then produces the DMG as a release artifact. Signing secrets, when they exist, live only in CI secrets.
 
+Planned (spec 21): this becomes OSS-07 in [21 Open source](21-open-source.md). The release workflow runs in the public repository `Bakhtiyor7/whoisworking`, from a tag on `master`: a job with a read-only token builds and tests, a second job attests the bytes, and only a third job, in an environment that needs the maintainer's approval, attaches them to a draft that the maintainer publishes by hand. The repository holds no secret (OSS-11). Signing secrets, when DST-07 brings them, live in that environment only.
+
+Verified by (planned): the first release built by that workflow (OSS-07).
+
 ## Open questions
 
 1. When does the Apple Developer Program membership ($99/year) start?
 2. Should 5b add Sparkle for in-place updates, now that the manual check (DST-03) exists?
-3. A CI release in the private repo needs a token that can write to the public `whoisworking-releases` repo. A fine-grained token limited to that repo's contents?
+3. ~~A CI release in the private repo needs a token that can write to the public `whoisworking-releases` repo. A fine-grained token limited to that repo's contents?~~ Goes away with spec 21: the releases live in the source repository, so the release job uses its own token (OSS-05, OSS-11).

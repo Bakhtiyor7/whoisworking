@@ -1,231 +1,249 @@
-# WhoIsWorking
+# Who's Working
 
-A macOS app that lives in the MacBook notch and shows the status of Claude Code, Codex, Cursor, OpenCode and Antigravity sessions on this Mac: which are working, which need you, which finished. Nothing is drawn while sessions are idle or working. When a session needs you, small amber "wings" appear beside the notch. Hover the notch for the full list.
+Who's Working shows your coding agent sessions in the MacBook notch: which are working, which need you, and which are done. It works with Claude Code, Codex, OpenCode, Cursor and Antigravity.
 
-Status only (v1): WhoIsWorking never approves or denies anything.
+It needs macOS 15 or later on a Mac with Apple silicon. **Free, on this Mac only, status only:** it never approves or denies anything for an agent.
 
-The app shows its name as "Who's Working". It was called Perch until 2026-11-22; see [Switching from Perch](#switching-from-perch).
+<!-- A short recording of the notch goes here before launch (OSS-14). -->
 
-## Requirements
+## Quick start
 
-- macOS 15 or later (built and tested on macOS 27.2, MacBook Pro M4)
-- Xcode 16+ command-line tools (Swift 6)
-
-## Build and test
+1. Paste this into Terminal. It installs Who's Working into Applications and opens it.
 
 ```bash
-swift test
+curl --proto '=https' --tlsv1.2 -fsSL -o whoisworking-install.sh https://github.com/Bakhtiyor7/whoisworking-releases/releases/latest/download/install.sh && sh whoisworking-install.sh
+```
+
+2. Hover the plug beside the notch, click **Connect** beside an agent, then **Install**.
+3. Send a prompt in that agent. Hover the notch to see the session.
+
+Read [what the command does](#install) before you run it. The app is not notarized, and this route skips the macOS first-launch check.
+
+## Is it safe?
+
+Who's Working changes your agents' hook files and receives their events, so it is fair to ask.
+
+- It writes only the files listed in [What Who's Working does on your Mac](docs/trust.md), and backs up an agent's file before changing it.
+- The hook it adds runs a short shell script that passes the event to the app and exits. It never answers for the agent.
+- Its only network request is **Check for Updates**, and only when you click it. GitHub sees your IP address.
+- It asks macOS for no special access: no Accessibility, Screen Recording or Full Disk Access.
+
+Three checks that take under a minute let you see some of this on your own Mac. [What Who's Working does on your Mac](docs/trust.md#three-checks-that-take-under-a-minute) says what each one shows.
+
+<details>
+<summary>Run the three checks</summary>
+
+1. Read the hook script that agents run. It exists once you have connected an agent.
+
+```bash
+cat ~/Library/Application\ Support/WhoIsWorking/whoisworking-hook
+```
+
+2. Before you connect Codex, see what would change in its hook file. This writes nothing. If Codex has no hook file yet, `diff` says the file does not exist; Who's Working would then create it with only its own entries.
+
+```bash
+diff -u ~/.codex/hooks.json <(/Applications/WhoIsWorking.app/Contents/MacOS/WhoIsWorking hooks preview --agent codex)
+```
+
+3. See that the app claims no entitlements. This prints only the app's path.
+
+```bash
+codesign -d --entitlements - /Applications/WhoIsWorking.app
+```
+
+</details>
+
+Who's Working is built with coding agents under the maintainer's review; the specs, the tests and the commit trailers are the record.
+
+## Install
+
+The command saves an install script as `whoisworking-install.sh` in the current folder and runs it. The script downloads the disk image of the latest release, checks it against the SHA-256 written in the script, copies Who's Working to Applications and opens it. It never uses `sudo` and never asks for a password.
+
+Before you run it:
+
+- Who's Working is not notarized, because there is no paid Apple Developer ID yet. macOS cannot check who made it.
+- An app installed this way skips the check macOS runs when you first open a download. If you want macOS to check it, use the [disk image](#install-from-the-disk-image) instead.
+- If Terminal warns you about pasting, or you use a standard account, use the disk image.
+
+<details>
+<summary>Install in three steps, reading the script first</summary>
+
+To pause before anything runs, do it in three steps.
+
+1. Download the script. Nothing runs yet.
+
+```bash
+curl --proto '=https' --tlsv1.2 -fsSL -o whoisworking-install.sh https://github.com/Bakhtiyor7/whoisworking-releases/releases/latest/download/install.sh
+```
+
+2. Read it. It is plain `/bin/sh`, and its first lines say what it does.
+
+```bash
+less whoisworking-install.sh
+```
+
+3. Run it.
+
+```bash
+sh whoisworking-install.sh
+```
+
+</details>
+
+### Install from the disk image
+
+1. Download the `.dmg` from the [latest release](https://github.com/Bakhtiyor7/whoisworking-releases/releases/latest) and open it.
+2. Drag **Who's Working** into **Applications**, then eject the disk image.
+3. Open Who's Working from Applications. macOS blocks the first launch, because the app is not notarized:
+   - Click **Done** in the dialog.
+   - Open **System Settings › Privacy & Security** and scroll down.
+   - Click **Open Anyway** next to "Who's Working", then confirm with your password.
+
+Expect this step again after each update, until releases are notarized.
+
+### Build it from source
+
+<details>
+<summary>Build and install from source</summary>
+
+You need Xcode or its command-line tools (Swift 6). A copy you build on your own Mac is not checked by Gatekeeper, so there is no Open Anyway step.
+
+1. Get the source of the latest release.
+
+```bash
+git clone https://github.com/Bakhtiyor7/whoisworking.git
 ```
 
 ```bash
-scripts/bundle.sh
+cd whoisworking
 ```
 
 ```bash
-scripts/check-specs.sh
+git checkout "$(git describe --tags --abbrev=0)"
 ```
 
-`check-specs.sh` checks that the specs in `docs/specs/` and the tests name each other.
-
-`bundle.sh` builds the release binary and assembles `build/WhoIsWorking.app` (agent app with no Dock icon via `LSUIElement`, ad-hoc signed, not notarized). Use `scripts/bundle.sh debug` for a debug build.
-
-## Run
+2. Build, test and install it into Applications. This takes a few minutes.
 
 ```bash
-open build/WhoIsWorking.app
+scripts/update.sh --install
 ```
 
-Hover the notch to open the panel. With no notch (external display), WhoIsWorking shows a small pill at the top centre when something needs you. Opening `WhoIsWorking.app` again while it runs shows Settings, which also has the Quit button.
+</details>
 
-Until an agent is connected, the notch shows a setup hint: a plug and "Set up" beside the notch (or in the pill). Hovering opens the panel with a "Finish setup" card that lists the agents found on this Mac. **Connect** shows what will change in that agent's file, and **Install** then writes it, the same way the Install button in Settings does. After an install the row says what is left, such as trusting the hooks in Codex. Each row also has **Skip**, for an agent you do not want connected: it is not offered again, and "Undo" beside its name in the card brings it back. **Later** hides the hint and the card for a week. Once every agent found on this Mac is connected or skipped, the hint is gone. Settings keeps every agent.
+## Connect your agents
 
-## Update to the latest changes
+Who's Working has to be connected to each agent you use. Until one is, a plug and **Set up** appear beside the notch.
 
-```bash
-scripts/update.sh
-```
+1. Hover the plug. The **Finish setup** card lists the agents found on this Mac.
+2. Click **Connect** beside an agent. The card says which file will change.
+3. Click **Install**. Who's Working backs up that file, then adds a hook: a command the agent runs when something happens.
+4. Do what the row says is left. Codex asks you to trust new hooks: type `/hooks` in the Codex CLI, or use **Review hooks** in the Codex app. Restart sessions that were already running.
 
-This runs the tests and the spec check, builds the release binary, stops the running WhoIsWorking, rebuilds `build/WhoIsWorking.app` and opens it. Tests and the build run before anything is stopped, so a failure leaves the running copy alone. `--skip-tests` skips the first step.
+To check that it works, send a prompt in a session you connected. The session appears when you hover the notch.
 
-To have WhoIsWorking in Applications (and Launchpad), run `scripts/update.sh --install`: it copies the new build to `/Applications/WhoIsWorking.app` and opens that copy. Once it is there, every later `scripts/update.sh` updates it too. "Open at login" needs the copy in Applications.
+The hook passes the agent's events to Who's Working on this Mac, and those events include your prompts, file paths and commands. The panel shows each session's state and a short activity line. The events never leave your Mac.
 
-Installed hooks keep working across updates: the hook script path stays the same and WhoIsWorking rewrites the script at launch when it changed.
+To undo it, open Settings (open Who's Working again while it runs) and click **Uninstall hooks…** in that agent's section. Who's Working removes only its own entries and keeps your later edits.
 
-Claude Code sessions that were already running appear within a few seconds (WhoIsWorking reads `~/.claude/sessions/*.json`). Codex has no session files: running Codex CLIs show as "Running · no live status yet" until their first hook event. Live states (needs approval, waiting for reply, done) need the hooks below. Cursor, OpenCode and Antigravity sessions appear after their first event once their hooks or plugin are installed. Session rows and Needs you cards show each agent's icon.
+<details>
+<summary>Notes for each agent</summary>
 
-WhoIsWorking bundles the full-color [Claude Code](https://github.com/lobehub/lobe-icons/blob/7e81f85708ada35e054c96173a14b1bfbe9b74e3/packages/static-png/dark/claudecode-color.png) and [Codex](https://github.com/lobehub/lobe-icons/blob/7e81f85708ada35e054c96173a14b1bfbe9b74e3/packages/static-png/dark/codex-color.png) artwork and the [Cursor, OpenCode and Antigravity marks](Resources/AgentIcons/README.md) from Lobe Icons. The [Lobe Icons MIT license](Sources/WhoIsWorking/AgentIcons/LobeIcons-LICENSE.txt) ships with the app. The marks identify the agents and belong to their respective owners.
+- **Claude Code:** sessions that were already running appear within a few seconds, before any hook event.
+- **Codex:** until you trust the hooks, Codex skips them and Who's Working sees nothing from Codex. A running Codex CLI shows "Running · no live status yet" until its first event.
+- **OpenCode 2:** Who's Working adds a plugin file instead of a hook. Restart running OpenCode sessions to load it.
+- **Cursor and Antigravity:** experimental. Their sessions go away after 15 minutes without events.
 
-## Releases
+[What Who's Working shows for each agent](docs/agents.md) has the details.
 
-Builds for other people are published in the public [whoisworking-releases](https://github.com/Bakhtiyor7/whoisworking-releases) repo as a DMG and, from 0.1.1, an `install.sh` for the install command ([spec 20](docs/specs/20-install-command.md)); this repo stays private. Bump the version in `Resources/Info.plist` and write `docs/release-notes/X.Y.Z.md` in a commit, then:
+</details>
 
-```bash
-scripts/release.sh X.Y.Z --dry-run
-```
+## Which agents it supports
 
-```bash
-scripts/release.sh X.Y.Z
-```
+| Agent | Shows | Does not show |
+|---|---|---|
+| Claude Code | working, needs approval, waiting for your reply, done, errors | |
+| Codex | working, needs approval, done, errors | waiting for your reply |
+| OpenCode 2 | working, needs approval, waiting for your reply, done, errors | |
+| Cursor (experimental) | working, done, errors | needs approval |
+| Antigravity (experimental) | working, done, errors | needs approval |
 
-The dry run tests, builds into `build/release/X.Y.Z-dry-run/`, checks the DMG, and renders the install script and runs it against that DMG, without publishing anything. The real run shows what it will publish and asks for "yes", then creates the release, pushes `master` and the tag to this repo, and checks the public download. The app's Check for Updates button reads the latest release of that repo. Details: [spec 13](docs/specs/13-distribution.md).
+[What Who's Working shows for each agent](docs/agents.md) says why, and how to connect and disconnect each one.
 
-## Switching from Perch
+## Update and uninstall
 
-The rename changed the hook path, so WhoIsWorking does not recognise hooks that Perch installed. With the old build still in `build/Perch.app`, remove them first (or use Uninstall hooks in Perch's Settings), then quit Perch:
+Click **Check for Updates** in Settings. If a newer version exists, **Download** opens its release page. Running the install command again also installs the newest release. Connected agents keep working after an update.
 
-```bash
-build/Perch.app/Contents/MacOS/Perch hooks uninstall
-```
+### Uninstall
 
-```bash
-build/Perch.app/Contents/MacOS/Perch hooks uninstall --agent codex
-```
-
-```bash
-pkill -x Perch
-```
-
-Then run `scripts/update.sh`, install the hooks again from WhoIsWorking (below) and delete `build/Perch.app`. If "Launch at login" was on in Perch, turn it on again in WhoIsWorking.
-
-## Install the Claude Code hooks
-
-In Settings choose **Install hooks…**, or from a terminal:
+1. In Settings, click **Uninstall hooks…** (OpenCode: **Uninstall plugin…**) for each connected agent. This removes Who's Working's entries and its hook script.
+2. Quit Who's Working from Settings, and move `/Applications/WhoIsWorking.app` to the Trash.
+3. Delete its folder and its preferences:
 
 ```bash
-build/WhoIsWorking.app/Contents/MacOS/WhoIsWorking hooks preview > /tmp/whoisworking-preview.json && diff -u ~/.claude/settings.json /tmp/whoisworking-preview.json
+rm -rf ~/Library/Application\ Support/WhoIsWorking
 ```
 
 ```bash
-build/WhoIsWorking.app/Contents/MacOS/WhoIsWorking hooks install
+defaults delete io.github.bakhtiyor7.WhoIsWorking
 ```
 
-What install does:
+The backups beside your agents' files, named `….whoisworking-backup-YYYYMMDD-HHMMSS`, stay until you delete them. If you delete the app first, the hooks stay in your agents' files and do nothing.
 
-1. Writes the hook script to `~/Library/Application Support/WhoIsWorking/whoisworking-hook`. It uses only `/bin/sh` and `/usr/bin/nc`, forwards the hook JSON to WhoIsWorking's socket and always exits 0, so it never blocks Claude Code, even when WhoIsWorking is not running.
-2. Saves a backup beside the settings file: `~/.claude/settings.json.whoisworking-backup-YYYYMMDD-HHMMSS`.
-3. Appends one WhoIsWorking entry to 13 hook events in `~/.claude/settings.json`. Other tools' entries are not changed or reordered. Running install again changes nothing. If the file is not valid JSON, WhoIsWorking refuses to write.
+## Common problems
 
-New Claude Code sessions pick up the hooks. Sessions that were already running may need a restart.
+<details>
+<summary>Nothing appears in the notch. Is it running?</summary>
 
-## Install the Codex hooks
+Who's Working draws nothing while sessions are working or idle. Amber wings appear beside the notch when a session needs you, and hovering the notch shows every session. If no agent is connected yet, a plug and **Set up** appear instead.
 
-In Settings, Codex section, choose **Install hooks…**, or:
+</details>
 
-```bash
-build/WhoIsWorking.app/Contents/MacOS/WhoIsWorking hooks preview --agent codex > /tmp/whoisworking-codex-preview.json && diff -u ~/.codex/hooks.json /tmp/whoisworking-codex-preview.json
-```
+<details>
+<summary>Why do my Codex sessions show no live status?</summary>
 
-```bash
-build/WhoIsWorking.app/Contents/MacOS/WhoIsWorking hooks install --agent codex
-```
+Codex runs new hooks only after you trust them. Type `/hooks` in the Codex CLI, or use **Review hooks** in the Codex app, and trust the Who's Working entries.
 
-This appends one WhoIsWorking entry (timeout 3 s, Codex's limit for SessionEnd and Interrupt) to 10 events in `~/.codex/hooks.json`, with the same guarantees as for Claude Code: backup first, other tools' entries untouched, idempotent, refuses invalid JSON.
+</details>
 
-Codex then asks you to trust the new hooks before it runs them. In the Codex CLI type `/hooks` and trust the WhoIsWorking entries; in the ChatGPT/Codex app use **Review hooks** (or Settings › Hooks). Until then Codex skips them and WhoIsWorking sees nothing from Codex. If Codex has never opened a folder before, it also asks whether to trust that folder.
+<details>
+<summary>My Mac has no notch. Does it work?</summary>
 
-## Install the Cursor hooks (experimental)
+Yes. On a screen without a notch, Who's Working shows a small pill at the top centre when a session needs you.
 
-In Settings, Cursor section, choose **Install hooks…**, or:
+</details>
 
-```bash
-build/WhoIsWorking.app/Contents/MacOS/WhoIsWorking hooks preview --agent cursor > /tmp/whoisworking-cursor-preview.json && diff -u ~/.cursor/hooks.json /tmp/whoisworking-cursor-preview.json
-```
+<details>
+<summary>macOS says it cannot verify Who's Working. What do I do?</summary>
 
-```bash
-build/WhoIsWorking.app/Contents/MacOS/WhoIsWorking hooks install --agent cursor
-```
+That is the check for apps that are not notarized. Follow the Open Anyway steps under [the disk image](#install-from-the-disk-image). If macOS says the app is damaged or is malware, do not open it, and [report it](SECURITY.md).
 
-This appends one entry (timeout 5 s) to 6 events in `~/.cursor/hooks.json`: `sessionStart`, `sessionEnd`, `postToolUse`, `postToolUseFailure`, `afterAgentThought` and `stop`. The guarantees are the same as for Claude Code. A new file starts with `"version": 1`. A file with hooks but no `version` is refused, because Cursor rejects it too. The Cursor app and `cursor-agent` read the same file, and Cursor reloads it on save.
+</details>
 
-## Install the OpenCode plugin
+<details>
+<summary>Terminal warned me when I pasted the command. Should I paste anyway?</summary>
 
-OpenCode 2 has no hooks file; it loads plugins. In Settings, OpenCode section, choose **Install plugin…**, or:
+Use the [disk image](#install-from-the-disk-image) instead. It goes through macOS's own check.
 
-```bash
-build/WhoIsWorking.app/Contents/MacOS/WhoIsWorking hooks install --agent opencode
-```
+</details>
 
-This writes WhoIsWorking's own file, `~/.config/opencode/plugins/whoisworking.js`. Other plugins are not touched. If a file at that path was not written by WhoIsWorking, install refuses. The plugin uses only Node built-ins. It forwards session status to WhoIsWorking's socket and never answers a permission or changes anything. Restart running OpenCode sessions to load it. WhoIsWorking updates its plugin at launch when it changed.
+<details>
+<summary>Does Who's Working slow down my agent?</summary>
 
-## Install the Antigravity hooks (experimental)
+The hook script passes the event to the app and exits. When Who's Working is not running, the script reads the event and exits without sending it.
 
-In Settings, Antigravity section, choose **Install hooks…**, or:
+</details>
 
-```bash
-build/WhoIsWorking.app/Contents/MacOS/WhoIsWorking hooks install --agent antigravity
-```
+## Report a bug or contribute
 
-This adds a hook group named `whoisworking` to `~/.gemini/config/hooks.json` for `SessionStart`, `PreInvocation`, `PostToolUse` and `Stop`. Other hook groups are not touched, and uninstall removes only that group. Antigravity allows comments in this file. WhoIsWorking cannot read a file with comments, so it refuses and changes nothing. The support is experimental: it follows Google's hook reference and has not yet been checked against a live Antigravity session.
-
-## Uninstall the hooks
-
-In Settings choose **Uninstall hooks…** in the agent's section, or:
-
-```bash
-build/WhoIsWorking.app/Contents/MacOS/WhoIsWorking hooks uninstall
-```
-
-```bash
-build/WhoIsWorking.app/Contents/MacOS/WhoIsWorking hooks uninstall --agent codex
-```
-
-`--agent cursor`, `--agent antigravity` and `--agent opencode` work the same way. For OpenCode, uninstall deletes the plugin file.
-
-This removes exactly the entries whose command contains `/WhoIsWorking/whoisworking-hook`. If WhoIsWorking was the only thing on an event, the event key is removed too, so the file returns to its earlier content. A backup is written first. For Antigravity the whole `whoisworking` hook group goes, and for OpenCode the plugin file is deleted (with a backup only if it was edited). The shared hook script is deleted once no agent's hooks use it.
-
-## How it works
-
-- `Sources/AgentCore` has no UI and is fully unit-tested: the session model and its six states, a pure reducer `(sessions, event) -> sessions`, the Claude Code, Codex, Cursor, OpenCode and Antigravity adapters, the OpenCode plugin source, the order-preserving JSON reader/writer used by the installer, the Unix socket server, the hook script, and session discovery.
-- `Sources/WhoIsWorking` is the app: a borderless non-activating `NSPanel` above the menu bar, sized from `NSScreen.safeAreaInsets` and the auxiliary top areas, with SwiftUI inside. It is click-through while collapsed, opens after a 150 ms hover dwell and closes 250 ms after the cursor leaves.
-- Two cases fire no hook: declining a permission prompt, and pressing Esc to interrupt. WhoIsWorking covers them with the session file: when its `status` turns `idle` after the last hook event, a session stuck in "needs approval" or "working" becomes idle. Without hooks, the file's `busy`, `waiting` and `idle` map to working, needs approval and idle.
-- The hook script sends its parent pid. For Codex, WhoIsWorking walks up from it to the nearest `codex` process and ties the session to it, so the session is removed when that process exits.
-
-## Codex: what is covered and what is not
-
-Tested live with Codex CLI 0.163.0 and 0.171.0 (needs approval, approve, done; a failed turn; a daemon restart during an open approval, which Codex resumes with `SessionStart` source `resume`). Neither build has a hook event for failed model requests.
-
-- Covered: working, needs approval (with the full command), done, interrupted, and turns that fail. Codex 0.163 fires no hook when a turn fails (for example an API error), so for a Codex session that has said "working" for 10 s without events, WhoIsWorking reads the end of its rollout (`transcript_path`) and shows the error or marks it done. Codex calls that file format unstable, so this is best effort.
-- No "waiting for your reply" for Codex: Codex has no notification event for questions.
-- Codex 0.163 runs the conversation in a shared `codex app-server` daemon that outlives the terminal ("Any running work continues"). WhoIsWorking ties those sessions to the daemon, so closing the CLI window does not remove them; Codex's `SessionEnd` (normal close, or 30 minutes idle with no client) does.
-- Sessions started before WhoIsWorking: running Codex CLIs appear as placeholders until their next hook event. Sessions in the ChatGPT app appear only after their next hook event.
-- One row per folder: a placeholder for a Codex CLI is hidden while a live Codex session exists in the same folder, so two CLIs in one folder show as one until the second sends an event.
-- Names: Codex sessions are named after their folder. ChatGPT app projects can live in folders with generated names.
-- "Open session" reaches the terminal only when the hook process still has the terminal app as an ancestor; daemon-hosted sessions usually do not, and WhoIsWorking beeps.
-
-## Cursor, OpenCode and Antigravity: what is covered and what is not
-
-- **Cursor** (app and `cursor-agent`, experimental): working, done, interrupted and errors. Cursor's events that see approvals are permission hooks, where an empty answer could block Cursor, so WhoIsWorking never registers them. Cursor sessions therefore never show "needs approval". Cursor reports tools only after they run, so a turn that only writes text shows nothing until it ends. Not yet checked against live Cursor payloads.
-- **OpenCode 2**: working, needs approval (with the request), waiting for your answer to a question, done, interrupted and errors. Subagents never become rows of their own; their permission requests show on the session you started. Checked against OpenCode 2.0.14 with captured runs (reply, shell command, rejected permission, subagent) and with the plugin itself running inside OpenCode. Questions, failed runs, renames and deleted sessions follow OpenCode's event schemas and were not captured. OpenCode 1 plugins are not supported.
-- **Antigravity** (experimental): working, done, background tasks still running, and errors. Antigravity's hooks have no approval event, so no "needs approval".
-- None of the three gives WhoIsWorking an owning process yet. Their sessions go when the agent ends them, or after 15 minutes without events, and "Open session" cannot find their window. A session waiting for you (approval or an answer) stays up to 4 hours, because agents send nothing while they wait.
-
-## How events arrive
-
-- Hook events arrive on `~/Library/Application Support/WhoIsWorking/events.sock` (directory 0700, socket 0600), one JSON object per connection. WhoIsWorking also rescans session files when they change, every 3 seconds and after wake. Sessions whose process exited are removed.
-
-"Open session" and row clicks bring the owning app to the front by walking the session process's parent chain to the first regular app (Terminal, iTerm2, VS Code, Cursor, Claude.app). They cannot select a specific terminal tab or a specific conversation inside Claude.app. Sessions inside tmux or screen have no app parent, so WhoIsWorking beeps instead.
-
-## Debug switches (environment variables)
-
-| Variable | Effect |
-|---|---|
-| `WHOISWORKING_DEBUG_STATE=/path/state.txt` | Writes a readable snapshot of all sessions on every change |
-| `WHOISWORKING_LOG_EVENTS=1` | Saves every raw hook payload to `~/Library/Application Support/WhoIsWorking/event-log/` (useful for test fixtures) |
-| `WHOISWORKING_SNAPSHOT=/dir` | Renders the collapsed and expanded panel to PNGs (no screen-recording permission needed) |
-| `WHOISWORKING_FORCE=expanded` | Keeps the panel open |
-| `WHOISWORKING_NO_NOTCH=1` | Uses the no-notch pill layout on a notched screen |
-| `WHOISWORKING_OPEN_SETTINGS=1` | Opens Settings at launch |
-| `WHOISWORKING_SETUP_PREVIEW=confirm:codex` | Shows the setup card with that agent's confirmation open (`installed:codex`: as if just installed from the card; `skipped:cursor`: with that agent skipped); agents are `claudeCode`, `codex`, `cursor`, `openCode`, `antigravity` |
+- **Found a bug?** [Open an issue](https://github.com/Bakhtiyor7/whoisworking/issues/new/choose). Please leave out private paths, prompts and session text.
+- **Found a security problem?** Report it privately, as [SECURITY.md](SECURITY.md) says.
+- **A question?** Ask in [Discussions](https://github.com/Bakhtiyor7/whoisworking/discussions).
+- **Want to help?** Start with [CONTRIBUTING.md](CONTRIBUTING.md). [docs/development.md](docs/development.md) says how to build and test.
 
 ## Licence
 
-Who's Working is free software under the [GNU General Public License, version 3](LICENSE). You may use, change and share it; a copy you share must come with its source under the same licence. The name and the icon are not part of that: see [TRADEMARK.md](TRADEMARK.md).
+Who's Working is free software under the [GNU General Public License, version 3 only](LICENSE) (`GPL-3.0-only`). You may use, change and share it; a copy you share must come with its source under the same licence. The name and the icon are not part of that: see [TRADEMARK.md](TRADEMARK.md).
 
-Copyright (C) 2026 BahhTee.
+The agent marks come from [Lobe Icons](https://github.com/lobehub/lobe-icons) under its [MIT licence](Sources/WhoIsWorking/AgentIcons/LobeIcons-LICENSE.txt), which ships with the app; [Resources/AgentIcons/README.md](Resources/AgentIcons/README.md) lists them. They identify the agents and belong to their owners.
 
-## Project docs
-
-- `docs/specs/`: what WhoIsWorking does as numbered requirements, each linked to its tests, plus draft specs for the next work
-- `docs/plan.md`: research, plan and settled design
-- `docs/spike/main.swift`: the throwaway spike the window behaviour came from
-- `AGENTS.md`: guidance for coding agents, including the project skills, hooks and allowlists
+Copyright (C) 2026 Bakhtiyor7.

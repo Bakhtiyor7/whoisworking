@@ -1,5 +1,6 @@
 name: CI
 
+# Only these triggers, never pull_request_target or workflow_run (OSS-17).
 on:
   push:
     branches: [main, master]
@@ -19,6 +20,8 @@ jobs:
     steps:
       # Pinned to a commit, not a tag: a tag can be moved (OSS-17). This is the commit v4 pointed at on 2026-11-26.
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
       - name: Swift version
         run: swift --version
       - name: Build
@@ -29,3 +32,19 @@ jobs:
         run: scripts/check-specs.sh
       - name: Nothing private in the tree, workflows pinned
         run: scripts/check-public.sh --tree-only
+      - name: Docs links, install command and wording
+        run: scripts/check-docs.sh
+
+  workflows:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Install zizmor (pinned by hash)
+        run: |
+          python3 -m venv "$RUNNER_TEMP/zizmor"
+          "$RUNNER_TEMP/zizmor/bin/pip" install --quiet --require-hashes --only-binary :all: -r .github/zizmor-requirements.txt
+      - name: Check the workflows with zizmor
+        run: '"$RUNNER_TEMP/zizmor/bin/zizmor" --offline .github/workflows'

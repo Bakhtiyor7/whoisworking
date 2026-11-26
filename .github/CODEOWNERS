@@ -1,0 +1,26 @@
+# Trust-critical paths (OSS-19, spec 21). A change to any of them needs the maintainer's review
+# under the ruleset on master (OSS-18). Other paths have no owner, so the ruleset asks for none.
+
+# What runs on the maintainer's Mac or in CI
+/.github/                           @Bakhtiyor7
+/.claude/                           @Bakhtiyor7
+/.codex/                            @Bakhtiyor7
+/.cursor/                           @Bakhtiyor7
+/.agents/                           @Bakhtiyor7
+/.vscode/                           @Bakhtiyor7
+/opencode.json                      @Bakhtiyor7
+/AGENTS.md                          @Bakhtiyor7
+/CLAUDE.md                          @Bakhtiyor7
+/Package.swift                      @Bakhtiyor7
+/scripts/                           @Bakhtiyor7
+
+# What the app writes to users' files or sends
+/Sources/AgentCore/HookInstaller.swift   @Bakhtiyor7
+/Sources/AgentCore/OrderedJSON.swift     @Bakhtiyor7
+/Sources/AgentCore/HooksCommand.swift    @Bakhtiyor7
+/Sources/AgentCore/Ingest.swift          @Bakhtiyor7
+/Sources/AgentCore/OpenCode.swift        @Bakhtiyor7
+/Sources/AgentCore/UpdateCheck.swift     @Bakhtiyor7
+/Sources/WhoIsWorking/Updates.swift      @Bakhtiyor7
+/Sources/WhoIsWorking/Settings.swift     @Bakhtiyor7
+/Resources/Info.plist                    @Bakhtiyor7
