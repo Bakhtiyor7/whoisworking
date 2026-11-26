@@ -393,8 +393,8 @@ A consequence of D7 that changes how D2 is carried out: the public repository is
 ## Open questions
 
 1. ~~`GPL-3.0-only` or `GPL-3.0-or-later`?~~ Answered by the user on 2026-11-26: only. The maintainer can still relicense their own code later; "or later" would accept terms that do not exist yet.
-2. Is "Who's Working" free of conflicts for a Mac app? The name changed once already for this reason.
-3. The other tracked files that could count as working notes: `docs/spike/main.swift` and `docs/releases-repo/README.md`. Proposed: both stay; the second is replaced by the pointer README of OSS-06.
+2. Is "Who's Working" free of conflicts for a Mac app? The name changed once already for this reason. The user chose on 2026-11-26 to answer it before the launch posts (Phase 5), not before the repository goes public.
+3. ~~The other tracked files that could count as working notes: `docs/spike/main.swift` and `docs/releases-repo/README.md`.~~ Answered by the user on 2026-11-26: both stay; the second is replaced by the pointer README of OSS-06.
 4. ~~`docs/distribution-rules.md` and specs 13 and 20 cite working plans that become local only.~~ Done on 2026-11-26: specs 13 and 20 in Phase 1; `docs/distribution-rules.md` and spec 22 when the `setup-copy-pass` branch was merged, with the review's sources for the rules written into `docs/distribution-rules.md`.
 
 Answered: ~~does `gh attestation verify` work without signing in?~~ No; `gh` 2.97.0 asks for a login (2026-11-26). OSS-08 says so.
