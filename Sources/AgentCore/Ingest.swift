@@ -62,7 +62,6 @@ public final class EventSocketServer: @unchecked Sendable {
     private let limits: Limits
     private let onMessage: @Sendable (Data) -> Void
     private let queue = DispatchQueue(label: "whoisworking.socket.accept")
-    private let workers = DispatchQueue(label: "whoisworking.socket.read", attributes: .concurrent)
     private var listenFD: Int32 = -1
     private var source: DispatchSourceRead?
     /// Connections being read right now (ING-12).
@@ -142,7 +141,9 @@ public final class EventSocketServer: @unchecked Sendable {
             let handler = onMessage
             let limits = limits
             let deadline = Date().addingTimeInterval(limits.connectionDeadline)
-            workers.async { [weak self] in
+            // A thread of its own, not a pooled one: a pool the process shares can make a read wait
+            // past its deadline (ING-13). takePlace() caps these threads at maxConnections.
+            let reader = Thread { [weak self] in
                 let data = Self.readAll(client, until: deadline, idle: limits.readTimeout)
                 // Handle before closing: the hook (and its parent processes) waits until we close,
                 // so the handler can still walk its process chain.
@@ -150,6 +151,8 @@ public final class EventSocketServer: @unchecked Sendable {
                 close(client)
                 self?.freePlace()
             }
+            reader.name = "whoisworking.socket.read"
+            reader.start()
         }
     }
 

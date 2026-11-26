@@ -193,6 +193,33 @@ struct EventSocketTests {
         #expect(inbox.all.first.map { String(decoding: $0, as: UTF8.self) } == #"{"n":4}"#)
     }
 
+    /// ING-13. GCD lends a concurrent queue at most 64 threads from a pool the whole process shares,
+    /// and a busy machine grows it slowly. Here more than 64 blocks hold that pool; the message must
+    /// be read anyway. (On a loaded CI runner a starved read made the deadline, message and hook-script
+    /// tests above fail.)
+    @Test func aConnectionIsReadWhileTheSharedThreadPoolIsBusy() async throws {
+        let path = try shortTempDir().appendingPathComponent("events.sock").path
+        let inbox = Inbox()
+        let server = EventSocketServer(path: path) { inbox.add($0) }
+        try server.start()
+        defer { server.stop() }
+
+        let release = DispatchSemaphore(value: 0)
+        let blockers = 96
+        for _ in 0..<blockers { DispatchQueue.global().async { release.wait() } }
+        defer { for _ in 0..<blockers { release.signal() } }
+        try await Task.sleep(for: .milliseconds(200))  // the pool is full
+
+        // Write and half-close without waiting for the server to close, which a starved server never does.
+        let fd = try connectClient(to: path)
+        defer { close(fd) }
+        let message = Data(#"{"n":1}"#.utf8)
+        _ = message.withUnsafeBytes { write(fd, $0.baseAddress, message.count) }
+        shutdown(fd, SHUT_WR)
+        let got = await inbox.wait(for: 1, timeout: 1)
+        #expect(got.map { String(decoding: $0, as: UTF8.self) } == [#"{"n":1}"#])
+    }
+
     @Test func theStandardLimitsAreTheOnesStatedHere() {
         #expect(EventSocketServer.Limits.standard
             == EventSocketServer.Limits(readTimeout: 2, connectionDeadline: 5, maxConnections: 32))

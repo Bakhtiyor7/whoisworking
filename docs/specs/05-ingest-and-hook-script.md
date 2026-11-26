@@ -80,3 +80,9 @@ Tests: `EventSocketTests/aConnectionIsClosedAtItsDeadlineHoweverSlowlyItSends`, 
 At most 32 connections are read at the same time. One that arrives while 32 are open is closed at once and its message is not read. The hook script still exits 0 (ING-07); that event is lost. When a connection ends, its place is free again.
 
 Tests: `EventSocketTests/connectionsBeyondTheCapAreClosedAtOnce`, `EventSocketTests/theStandardLimitsAreTheOnesStatedHere`
+
+### ING-13 A connection is read at once, however busy the process is
+
+An accepted connection is read on a thread of its own, started when it is accepted, never on a thread borrowed from a pool the whole process shares. ING-12's cap of 32 bounds these threads. So a message is read, and the deadline of ING-11 kept, while the rest of the app (or, in tests, the other suites) keeps every pooled thread busy. Found on 2026-11-26: on a loaded CI runner, reads queued behind GCD's limited pool, so a message arrived after 3 s, a connection outlived its deadline and the hook script waited out `nc`'s 1 s timeout.
+
+Tests: `EventSocketTests/aConnectionIsReadWhileTheSharedThreadPoolIsBusy`
