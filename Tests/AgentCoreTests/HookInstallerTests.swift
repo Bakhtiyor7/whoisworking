@@ -282,6 +282,58 @@ struct HookInstallerTests {
         #expect(try String(contentsOf: real, encoding: .utf8) != existing)
     }
 
+    /// INS-18. A large backup takes long enough to write that a watcher sees the file while it
+    /// is still being filled. Every mode the watcher sees must already be owner-only.
+    @Test func aBackupIsNeverReadableByOthersWhileItIsWritten() throws {
+        let t = try TempSettings("{}")
+        let expected = t.file.path + ".whoisworking-backup-" + Self.stamp(t.clock)
+        let watcher = ModeWatcher(path: expected)
+        watcher.start()
+        let url = try HookInstaller.writeBackup(of: Data(count: 96 * 1024 * 1024), beside: t.file, at: t.clock)
+        let seen = watcher.stop()
+        #expect(url.path == expected)
+        #expect(seen == [0o600])
+    }
+
+    // INS-19. `beforeWrite` stands in for another tool that edits the file between
+    // WhoIsWorking's read and its write.
+
+    @Test func anEditMadeWhileInstallingIsKept() throws {
+        let t = try TempSettings(existing)
+        let file = t.file
+        let theirs = #"{"model": "set by another tool"}"# + "\n"
+        var installer = t.installer
+        installer.beforeWrite = { try? Data(theirs.utf8).write(to: file) }
+        #expect(throws: HookInstallerError.changedMeanwhile) { try installer.install() }
+        #expect(t.text == theirs)
+        #expect(t.backups.isEmpty)
+        // The next try starts from the other tool's content and succeeds.
+        try t.installer.install()
+        #expect(t.text.contains("set by another tool"))
+        #expect(try t.installer.status() == .installed)
+    }
+
+    @Test func aFileDeletedWhileInstallingStaysDeleted() throws {
+        let t = try TempSettings(existing)
+        let file = t.file
+        var installer = t.installer
+        installer.beforeWrite = { try? FileManager.default.removeItem(at: file) }
+        #expect(throws: HookInstallerError.changedMeanwhile) { try installer.install() }
+        #expect(t.text == "<missing>")
+        #expect(t.backups.isEmpty)
+    }
+
+    @Test func aFileThatAppearsWhileInstallingIsKept() throws {
+        let t = try TempSettings(nil)
+        let file = t.file
+        let theirs = #"{"model": "created by another tool"}"# + "\n"
+        var installer = t.installer
+        installer.beforeWrite = { try? Data(theirs.utf8).write(to: file) }
+        #expect(throws: HookInstallerError.changedMeanwhile) { try installer.install() }
+        #expect(t.text == theirs)
+        #expect(t.backups.isEmpty)
+    }
+
     static func stamp(_ date: Date) -> String {
         let f = DateFormatter()
         f.locale = Locale(identifier: "en_US_POSIX")
@@ -307,4 +359,47 @@ private func withoutWhitespace(_ text: String) -> String {
         }
     }
     return out
+}
+
+/// Polls a path's permission bits on another thread until stopped, and once more at the end.
+private final class ModeWatcher: @unchecked Sendable {
+    private let path: String
+    private let lock = NSLock()
+    private var modes: Set<Int> = []
+    private var stopped = false
+    private let finished = DispatchSemaphore(value: 0)
+
+    init(path: String) { self.path = path }
+
+    private func look() {
+        var info = stat()
+        guard stat(path, &info) == 0 else { return }
+        lock.lock()
+        modes.insert(Int(info.st_mode & 0o777))
+        lock.unlock()
+    }
+
+    func start() {
+        Thread.detachNewThread { [self] in
+            while true {
+                lock.lock()
+                let done = stopped
+                lock.unlock()
+                if done { break }
+                look()
+            }
+            look()
+            finished.signal()
+        }
+    }
+
+    func stop() -> Set<Int> {
+        lock.lock()
+        stopped = true
+        lock.unlock()
+        finished.wait()
+        lock.lock()
+        defer { lock.unlock() }
+        return modes
+    }
 }

@@ -43,6 +43,24 @@ private func send(_ data: Data, to path: String) throws {
     _ = read(fd, &byte, 1)  // wait for the server to close
 }
 
+/// A connected client socket that the test drives by hand. Writing to it after the server has
+/// closed fails instead of raising SIGPIPE.
+private func connectClient(to path: String) throws -> Int32 {
+    let fd = socket(AF_UNIX, SOCK_STREAM, 0)
+    var on: Int32 = 1
+    setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, &on, socklen_t(MemoryLayout<Int32>.size))
+    var addr = sockaddr_un()
+    addr.sun_family = sa_family_t(AF_UNIX)
+    withUnsafeMutableBytes(of: &addr.sun_path) { buf in
+        _ = path.utf8CString.withUnsafeBytes { src in memcpy(buf.baseAddress!, src.baseAddress!, src.count) }
+    }
+    let ok = withUnsafePointer(to: &addr) {
+        $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { connect(fd, $0, socklen_t(MemoryLayout<sockaddr_un>.size)) }
+    }
+    guard ok == 0 else { close(fd); throw POSIXError(.ECONNREFUSED) }
+    return fd
+}
+
 /// Runs the hook script with `stdin`, returns (exit code, stdout+stderr, seconds).
 private func runHook(
     _ script: URL, stdin: String, socket: String, arguments: [String] = ["claude-code"]
@@ -121,6 +139,65 @@ struct EventSocketTests {
         #expect(Date().timeIntervalSince(start) >= 0.29)
     }
 
+    /// ING-11. The sender keeps the connection busy with a byte every 0.1 s, so the 2 s idle
+    /// timeout never fires. Only the deadline can close it.
+    @Test func aConnectionIsClosedAtItsDeadlineHoweverSlowlyItSends() throws {
+        let path = try shortTempDir().appendingPathComponent("events.sock").path
+        let limits = EventSocketServer.Limits(readTimeout: 2, connectionDeadline: 0.4, maxConnections: 32)
+        let server = EventSocketServer(path: path, limits: limits) { _ in }
+        try server.start()
+        defer { server.stop() }
+
+        let fd = try connectClient(to: path)
+        defer { close(fd) }
+        let start = Date()
+        var closedAfter: TimeInterval?
+        while Date().timeIntervalSince(start) < 3 {
+            var byte: UInt8 = 0x20
+            if write(fd, &byte, 1) != 1 {
+                closedAfter = Date().timeIntervalSince(start)
+                break
+            }
+            usleep(100_000)
+        }
+        let closed = try #require(closedAfter, "the server never closed the connection")
+        #expect(closed >= 0.3)
+        #expect(closed < 1.5)
+    }
+
+    /// ING-12. Two connections that send nothing fill a cap of two; the third is turned away.
+    @Test func connectionsBeyondTheCapAreClosedAtOnce() async throws {
+        let path = try shortTempDir().appendingPathComponent("events.sock").path
+        let inbox = Inbox()
+        let limits = EventSocketServer.Limits(readTimeout: 2, connectionDeadline: 2, maxConnections: 2)
+        let server = EventSocketServer(path: path, limits: limits) { inbox.add($0) }
+        try server.start()
+        defer { server.stop() }
+
+        let first = try connectClient(to: path)
+        let second = try connectClient(to: path)
+        try await Task.sleep(for: .milliseconds(100))  // both accepted
+
+        let start = Date()
+        try send(Data(#"{"n":3}"#.utf8), to: path)  // returns when the server closes the connection
+        #expect(Date().timeIntervalSince(start) < 0.5)
+        #expect(inbox.all.isEmpty)
+
+        // A place is free again once a connection ends.
+        close(first)
+        close(second)
+        for _ in 0..<20 where inbox.all.isEmpty {
+            try await Task.sleep(for: .milliseconds(50))
+            try send(Data(#"{"n":4}"#.utf8), to: path)
+        }
+        #expect(inbox.all.first.map { String(decoding: $0, as: UTF8.self) } == #"{"n":4}"#)
+    }
+
+    @Test func theStandardLimitsAreTheOnesStatedHere() {
+        #expect(EventSocketServer.Limits.standard
+            == EventSocketServer.Limits(readTimeout: 2, connectionDeadline: 5, maxConnections: 32))
+    }
+
     @Test func stopRemovesTheSocket() throws {
         let dir = try shortTempDir()
         let path = dir.appendingPathComponent("events.sock").path
@@ -149,10 +226,17 @@ struct HookScriptTests {
     @Test func exitsZeroQuicklyAndSilentlyWhenTheAppIsNotRunning() throws {
         let script = try installScript()
         let missing = try shortTempDir().appendingPathComponent("none.sock").path
-        let (code, output, seconds) = try runHook(script, stdin: #"{"session_id":"x"}"#, socket: missing)
-        #expect(code == 0)
-        #expect(output.isEmpty)
-        #expect(seconds < 0.5)
+        // With no socket the script must not try to connect at all: it exits at once, where a
+        // connection attempt would cost nc's 1 s timeout. One run took 0.504 s on a loaded Mac, so,
+        // as in forwardsStdinWithAnAgentHeader, the fastest of up to three runs must beat the bound.
+        var fastest = TimeInterval.infinity
+        for _ in 0..<3 where fastest >= 0.5 {
+            let (code, output, seconds) = try runHook(script, stdin: #"{"session_id":"x"}"#, socket: missing)
+            #expect(code == 0)
+            #expect(output.isEmpty)
+            fastest = min(fastest, seconds)
+        }
+        #expect(fastest < 0.5)
     }
 
     @Test func exitsZeroWhenTheSocketFileIsStale() throws {
@@ -184,10 +268,19 @@ struct HookScriptTests {
         defer { server.stop() }
 
         let payload = #"{"session_id":"abc","hook_event_name":"Stop"}"#
-        let (code, output, seconds) = try runHook(script, stdin: payload, socket: path)
-        #expect(code == 0)
-        #expect(output.isEmpty)
-        #expect(seconds < 1.0)
+        // The bound tells "the server closed the connection at once" (tens of ms) from "nc waited
+        // out its 1 s timeout" (always 1 s or more). One run can be slow on a loaded machine: on
+        // the CI runner it took 1.02 s and 1.07 s while the other suites were starting. So the
+        // fastest of up to three runs must be under the bound; a server that never closes early
+        // still fails all three.
+        var fastest = TimeInterval.infinity
+        for _ in 0..<3 where fastest >= 1.0 {
+            let (code, output, seconds) = try runHook(script, stdin: payload, socket: path)
+            #expect(code == 0)
+            #expect(output.isEmpty)
+            fastest = min(fastest, seconds)
+        }
+        #expect(fastest < 1.0)
         let got = await inbox.wait(for: 1)
         // The header names the agent and the hook's parent pid (here: this test process, which ran the script).
         #expect(got.first.map { String(decoding: $0, as: UTF8.self) } == "whoisworking1 claude-code ppid=\(getpid())\n" + payload)

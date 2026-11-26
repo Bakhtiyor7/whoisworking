@@ -148,6 +148,7 @@ EXE="$APPM/Contents/MacOS/WhoIsWorking"
 [ "$(/usr/libexec/PlistBuddy -c 'Print CFBundleVersion' "$APPM/Contents/Info.plist")" = "$PLIST_BUILD" ] || fail "app build is not $PLIST_BUILD"
 ICON="$(/usr/libexec/PlistBuddy -c 'Print CFBundleIconFile' "$APPM/Contents/Info.plist" 2>/dev/null || true)"
 [ -n "$ICON" ] && cmp -s "$APPM/Contents/Resources/$ICON" Resources/WhoIsWorking.icns || fail "app icon missing or different"
+cmp -s "$APPM/Contents/Resources/LICENSE" LICENSE || fail "licence missing from the app or different"
 [ "$(lipo -archs "$EXE")" = "arm64" ] || fail "executable is not arm64-only: $(lipo -archs "$EXE")"
 codesign --verify --strict "$APPM" 2>/dev/null || fail "signature does not verify"
 if strings -a "$EXE" | grep -q "/Users/"; then fail "executable contains a /Users/ path"; fi

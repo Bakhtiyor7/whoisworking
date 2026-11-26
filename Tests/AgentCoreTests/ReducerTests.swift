@@ -195,6 +195,38 @@ struct ReducerTests {
         #expect(s.sessions.isEmpty)
     }
 
+    /// RED-21
+    @Test func onlyTheNewest1000EndedSessionsAreRemembered() {
+        var events: [StoreEvent] = []
+        for n in 0...1000 {  // 1,001 sessions end, e0 first
+            events.append(ev(.promptSubmitted, Double(n), id: "e\(n)"))
+            events.append(ev(.sessionEnded, Double(n) + 0.5, id: "e\(n)"))
+        }
+        let ended = run(events)
+        #expect(ended.sessions.isEmpty)
+        #expect(ended.ended.count == 1000)
+        #expect(!ended.ended.contains("e0"))
+        #expect(ended.ended.contains("e1"))
+        #expect(ended.ended.contains("e1000"))
+
+        // A late event for the newest stays dropped; one for the forgotten id is an unknown session again.
+        let late = run([ev(.stopped(lastMessage: nil), 2000, id: "e1000"), ev(.stopped(lastMessage: nil), 2000, id: "e0")], from: ended)
+        #expect(late.sessions["e1000"] == nil)
+        #expect(late.sessions["e0"] != nil)
+    }
+
+    /// RED-22
+    @Test func aSessionIdLongerThan256CharactersIsDropped() {
+        let justFits = String(repeating: "a", count: 256)
+        let tooLong = String(repeating: "a", count: 257)
+        let s = run([ev(.promptSubmitted, 0, id: justFits), ev(.promptSubmitted, 1, id: tooLong), ev(.sessionEnded, 2, id: tooLong)])
+        #expect(s.sessions.keys.sorted() == [justFits])
+        #expect(s.ended.isEmpty)
+
+        let found = DiscoveredSession(sessionId: tooLong, pid: 1, cwd: "/Users/me/x", startedAt: at(0))
+        #expect(run([.discovered(found, at: at(3))]).sessions.isEmpty)
+    }
+
     @Test func resumingAnEndedSessionBringsItBack() {
         let s = run([ev(.promptSubmitted, 0), ev(.sessionEnded, 10), ev(.sessionStarted, 20)])
         #expect(s.sessions["s1"]?.state == .idle)

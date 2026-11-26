@@ -217,6 +217,12 @@ Tested live with Codex CLI 0.163.0 and 0.171.0 (needs approval, approve, done; a
 | `WHOISWORKING_OPEN_SETTINGS=1` | Opens Settings at launch |
 | `WHOISWORKING_SETUP_PREVIEW=confirm:codex` | Shows the setup card with that agent's confirmation open (`installed:codex`: as if just installed from the card; `skipped:cursor`: with that agent skipped); agents are `claudeCode`, `codex`, `cursor`, `openCode`, `antigravity` |
 
+## Licence
+
+Who's Working is free software under the [GNU General Public License, version 3](LICENSE). You may use, change and share it; a copy you share must come with its source under the same licence. The name and the icon are not part of that: see [TRADEMARK.md](TRADEMARK.md).
+
+Copyright (C) 2026 BahhTee.
+
 ## Project docs
 
 - `docs/specs/`: what WhoIsWorking does as numbered requirements, each linked to its tests, plus draft specs for the next work

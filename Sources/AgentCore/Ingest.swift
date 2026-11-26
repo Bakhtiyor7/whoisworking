@@ -39,15 +39,39 @@ public final class EventSocketServer: @unchecked Sendable {
     public static let maxMessageBytes = 1 << 20
     public static let readTimeoutSeconds = 2
 
+    /// How long and how many (ING-11, ING-12). Tests pass shorter ones.
+    public struct Limits: Equatable, Sendable {
+        /// A connection is closed after this long without data.
+        public var readTimeout: TimeInterval
+        /// A connection is closed this long after it was accepted, whatever it sent.
+        public var connectionDeadline: TimeInterval
+        /// Connections read at the same time; one more is closed at once.
+        public var maxConnections: Int
+
+        public init(readTimeout: TimeInterval, connectionDeadline: TimeInterval, maxConnections: Int) {
+            self.readTimeout = readTimeout
+            self.connectionDeadline = connectionDeadline
+            self.maxConnections = maxConnections
+        }
+
+        public static let standard = Limits(
+            readTimeout: TimeInterval(EventSocketServer.readTimeoutSeconds), connectionDeadline: 5, maxConnections: 32)
+    }
+
     private let path: String
+    private let limits: Limits
     private let onMessage: @Sendable (Data) -> Void
     private let queue = DispatchQueue(label: "whoisworking.socket.accept")
     private let workers = DispatchQueue(label: "whoisworking.socket.read", attributes: .concurrent)
     private var listenFD: Int32 = -1
     private var source: DispatchSourceRead?
+    /// Connections being read right now (ING-12).
+    private let countLock = NSLock()
+    private var openConnections = 0
 
-    public init(path: String, onMessage: @escaping @Sendable (Data) -> Void) {
+    public init(path: String, limits: Limits = .standard, onMessage: @escaping @Sendable (Data) -> Void) {
         self.path = path
+        self.limits = limits
         self.onMessage = onMessage
     }
 
@@ -109,27 +133,54 @@ public final class EventSocketServer: @unchecked Sendable {
         while true {
             let client = accept(listenFD, nil, nil)
             guard client >= 0 else { return }
+            guard takePlace() else {
+                close(client)  // Full: turned away unread (ING-12). The hook exits 0 all the same.
+                continue
+            }
             var on: Int32 = 1
             setsockopt(client, SOL_SOCKET, SO_NOSIGPIPE, &on, socklen_t(MemoryLayout<Int32>.size))
-            var timeout = timeval(tv_sec: Self.readTimeoutSeconds, tv_usec: 0)
-            setsockopt(client, SOL_SOCKET, SO_RCVTIMEO, &timeout, socklen_t(MemoryLayout<timeval>.size))
             let handler = onMessage
-            workers.async {
-                let data = Self.readAll(client)
+            let limits = limits
+            let deadline = Date().addingTimeInterval(limits.connectionDeadline)
+            workers.async { [weak self] in
+                let data = Self.readAll(client, until: deadline, idle: limits.readTimeout)
                 // Handle before closing: the hook (and its parent processes) waits until we close,
                 // so the handler can still walk its process chain.
                 if !data.isEmpty { handler(data) }
                 close(client)
+                self?.freePlace()
             }
         }
     }
 
-    private static func readAll(_ fd: Int32) -> Data {
+    private func takePlace() -> Bool {
+        countLock.lock()
+        defer { countLock.unlock() }
+        guard openConnections < limits.maxConnections else { return false }
+        openConnections += 1
+        return true
+    }
+
+    private func freePlace() {
+        countLock.lock()
+        openConnections -= 1
+        countLock.unlock()
+    }
+
+    /// Reads until the sender closes, `idle` seconds pass without data, `deadline` comes (ING-11),
+    /// or the message is as large as it may be.
+    private static func readAll(_ fd: Int32, until deadline: Date, idle: TimeInterval) -> Data {
         // Accepted sockets inherit O_NONBLOCK from the listener on Darwin; reads should block (with timeout).
         _ = fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) & ~O_NONBLOCK)
         var data = Data()
         var buffer = [UInt8](repeating: 0, count: 16 * 1024)
         while data.count < maxMessageBytes {
+            // Each read may wait for the idle time, but never past the deadline.
+            let wait = min(idle, deadline.timeIntervalSinceNow)
+            guard wait > 0 else { break }
+            var timeout = timeval(tv_sec: Int(wait), tv_usec: Int32((wait - wait.rounded(.down)) * 1_000_000))
+            if timeout.tv_sec == 0, timeout.tv_usec == 0 { timeout.tv_usec = 1000 }  // zero would mean "no timeout"
+            setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, socklen_t(MemoryLayout<timeval>.size))
             let n = read(fd, &buffer, buffer.count)
             if n <= 0 { break }
             data.append(buffer, count: n)

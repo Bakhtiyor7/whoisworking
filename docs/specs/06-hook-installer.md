@@ -120,3 +120,17 @@ Tests: `AntigravityHookInstallerTests/installAddsOneNamedGroupWithTheEventInEach
 When install or uninstall would leave the parsed content unchanged, the file is not written and no backup is made, even if its formatting differs from WhoIsWorking's.
 
 Tests: `HookInstallerTests/aLogicalNoOpWritesNothing` (uninstall on a compact file without WhoIsWorking's hooks, and reinstall on a compact file that has them)
+
+### INS-18 A backup is private from its first byte
+
+A backup is created with mode 0600. It is never readable by other users, also not between its creation and a later permission change. A file that already exists at the backup's path is never overwritten.
+
+Tests: `HookInstallerTests/aBackupIsNeverReadableByOthersWhileItIsWritten`
+
+### INS-19 An edit made meanwhile is never overwritten
+
+Given another tool changes, creates or deletes the file after WhoIsWorking read it, when WhoIsWorking is about to write, then it reads the file again and, finding it different from what it read, refuses: the file stays as the other tool left it, the backup WhoIsWorking had just made is removed, and the message says the file changed and to try again.
+
+The check runs immediately before the write. The instant between the check and the write cannot be closed, because other tools take no lock on the file.
+
+Tests: `HookInstallerTests/anEditMadeWhileInstallingIsKept`, `HookInstallerTests/aFileDeletedWhileInstallingStaysDeleted`, `HookInstallerTests/aFileThatAppearsWhileInstallingIsKept`

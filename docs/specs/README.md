@@ -25,6 +25,7 @@ What WhoIsWorking does, written as numbered requirements. Tests prove them; `scr
 | [18 Winter theme](18-winter-theme.md) | WTR | draft |
 | [19 Desktop pet](19-desktop-pet.md) | PET | draft |
 | [20 Install command](20-install-command.md) | DST | draft |
+| [21 Open source](21-open-source.md) | OSS | draft |
 
 ## Tracking feature plans
 

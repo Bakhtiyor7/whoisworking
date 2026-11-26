@@ -16,6 +16,8 @@ cp "$BIN" "$APP/Contents/MacOS/WhoIsWorking"
 cp Resources/Info.plist "$APP/Contents/Info.plist"
 cp Resources/WhoIsWorking.icns "$APP/Contents/Resources/"
 cp Sources/WhoIsWorking/AgentIcons/LobeIcons-LICENSE.txt "$APP/Contents/Resources/"
+# The app's own licence (OSS-01).
+cp LICENSE "$APP/Contents/Resources/LICENSE"
 plutil -lint "$APP/Contents/Info.plist" >/dev/null
 # Ad-hoc signature: no Apple Developer account needed; enough to run locally.
 codesign --force --sign - "$APP" >/dev/null

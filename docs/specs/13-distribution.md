@@ -1,7 +1,7 @@
 # 13 Distribution
 
 Status: draft
-Source: `docs/plan.md` §4 phase 5 and §6 decision 2; design and order of work in `docs/release-plan.md`
+Source: `docs/plan.md` §4 phase 5 and §6 decision 2
 Code: `Sources/AgentCore/UpdateCheck.swift`, `Sources/AgentCore/RunLocation.swift`, `Sources/WhoIsWorking/Settings.swift`, `scripts/bundle.sh`, `scripts/make-dmg.sh`, `scripts/release.sh`. The install command is in [20 Install command](20-install-command.md)
 
 ## Purpose
@@ -80,7 +80,7 @@ Tests: `RunLocationTests/anAppInApplicationsIsInstalled`, `RunLocationTests/anAp
 
 ### DST-11 DMG check
 
-Before anything is published, the DMG passes `hdiutil verify`, and its mounted copy has: an `Applications` link, `WhoIsWorking.app` with the expected version and build number, the app icon, only an `arm64` executable, a valid signature (`codesign --verify --strict`), and no `/Users/` path in the executable's strings.
+Before anything is published, the DMG passes `hdiutil verify`, and its mounted copy has: an `Applications` link, `WhoIsWorking.app` with the expected version and build number, the app icon, the `LICENSE` file (OSS-01), only an `arm64` executable, a valid signature (`codesign --verify --strict`), and no `/Users/` path in the executable's strings.
 
 Verified by: `scripts/release.sh 0.1.0 --dry-run`
 

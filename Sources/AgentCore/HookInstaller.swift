@@ -4,12 +4,15 @@ public enum HookInstallerError: Error, Equatable, CustomStringConvertible {
     case invalidJSON(String)
     case unexpectedShape(String)
     case io(String)
+    /// Another tool changed the file between WhoIsWorking's read and its write (INS-19).
+    case changedMeanwhile
 
     public var description: String {
         switch self {
         case .invalidJSON(let detail): "The settings file is not valid JSON (\(detail)). Nothing was changed."
         case .unexpectedShape(let detail): "The settings file has an unexpected shape: \(detail). Nothing was changed."
         case .io(let detail): "Could not read or write the settings file: \(detail)"
+        case .changedMeanwhile: "The settings file changed while Who's Working was updating it. Nothing was changed. Try again."
         }
     }
 }
@@ -127,6 +130,10 @@ public struct HookInstaller: Sendable {
 
     private var events: [String] { target.events }
 
+    /// Runs between the read and the write. Tests use it to act as another tool that edits the file
+    /// in that gap (INS-19); the app leaves it empty.
+    var beforeWrite: @Sendable () -> Void = {}
+
     public init(target: HookTarget, settingsURL: URL, hookCommand: String, now: @escaping @Sendable () -> Date = Date.init) {
         self.target = target
         self.settingsURL = settingsURL
@@ -188,6 +195,15 @@ public struct HookInstaller: Sendable {
         if exists {
             permissions = (try? fm.attributesOfItem(atPath: target.path)[.posixPermissions]) as? Int
             backup = try writeBackup(of: Data(preview.before.utf8))
+        }
+        beforeWrite()
+        // Another tool may have written the file since it was read. Look again right before the
+        // write, and refuse instead of overwriting what it wrote (INS-19).
+        let current = try? Data(contentsOf: target)
+        let unchanged = current.map { $0 == Data(preview.before.utf8) } ?? preview.before.isEmpty
+        guard unchanged else {
+            if let backup { try? fm.removeItem(at: backup) }
+            throw HookInstallerError.changedMeanwhile
         }
         do {
             // A first install may need the agent's config folder (for example ~/.gemini/config).
@@ -444,17 +460,23 @@ public struct HookInstaller: Sendable {
         let base = file.path + ".whoisworking-backup-" + formatter.string(from: date)
         var path = base
         var n = 2
-        while FileManager.default.fileExists(atPath: path) {
+        // O_EXCL creates the file or fails, so an existing file is never overwritten, and the mode
+        // is 0600 from the start: the backup is never readable by others, not even briefly (INS-18).
+        var fd = open(path, O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC, 0o600)
+        while fd < 0, errno == EEXIST {
             path = "\(base)-\(n)"
             n += 1
+            fd = open(path, O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC, 0o600)
         }
-        let url = URL(fileURLWithPath: path)
+        guard fd >= 0 else { throw HookInstallerError.io("backup failed: \(String(cString: strerror(errno)))") }
+        let handle = FileHandle(fileDescriptor: fd, closeOnDealloc: true)
         do {
-            try data.write(to: url, options: .withoutOverwriting)
-            try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: url.path)
+            try handle.write(contentsOf: data)
+            try handle.close()
         } catch {
+            try? FileManager.default.removeItem(atPath: path)
             throw HookInstallerError.io("backup failed: \(error.localizedDescription)")
         }
-        return url
+        return URL(fileURLWithPath: path)
     }
 }

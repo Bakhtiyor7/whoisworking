@@ -68,3 +68,15 @@ Tests: `HookScriptTests/exitsZeroQuicklyAndSilentlyWhenTheAppIsNotRunning`
 Given an agent whose payload has no event name (Antigravity), its handlers are registered with the event as a second argument: `whoisworking-hook antigravity Stop`. The script then adds `event=<name>` to the header (`whoisworking1 antigravity ppid=<pid> event=Stop`) and forwards stdin unchanged. Without a second argument the header is exactly as before. The script sends `event=` only for a name of letters and leaves anything else out. The parser also accepts only a name of letters; an empty, malformed or repeated `event=` gives no event name. The script still prints nothing and exits 0 (ING-07).
 
 Tests: `HookScriptTests/forwardsTheEventNameWhenGiven`, `HookScriptTests/exitsZeroSilentlyWithAnEventNameAndNoApp`, `HookScriptTests/malformedEventArgumentsAreLeftOut`, `HookMessageTests/headerCarriesTheEventName`, `HookMessageTests/malformedEventNamesAreIgnored`
+
+### ING-11 A connection has 5 seconds
+
+A connection is closed 5 s after it was accepted, however slowly its sender writes. Until then the rules already in force apply: it is also closed after 2 s without data, and at 1 MB. What was read by then is handed on like any other message; a hook sends its whole message in milliseconds.
+
+Tests: `EventSocketTests/aConnectionIsClosedAtItsDeadlineHoweverSlowlyItSends`, `EventSocketTests/theStandardLimitsAreTheOnesStatedHere`
+
+### ING-12 At most 32 connections at once
+
+At most 32 connections are read at the same time. One that arrives while 32 are open is closed at once and its message is not read. The hook script still exits 0 (ING-07); that event is lost. When a connection ends, its place is free again.
+
+Tests: `EventSocketTests/connectionsBeyondTheCapAreClosedAtOnce`, `EventSocketTests/theStandardLimitsAreTheOnesStatedHere`

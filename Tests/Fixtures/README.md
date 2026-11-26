@@ -11,7 +11,7 @@ when available (run WhoIsWorking with `WHOISWORKING_LOG_EVENTS=1` and copy files
 ## `claude-sessions/*.json` (REAL SHAPE, values changed)
 
 Copied from a real `~/.claude/sessions/<pid>.json` on this machine. Field names and
-types are real; paths and a few fields were replaced or removed.
+types are real. The session id, the session name, the timestamps and the paths are placeholders.
 
 ## `claude-code-real/*.json` (CAPTURED, anonymized)
 
@@ -29,7 +29,7 @@ Codex hook payloads built by hand on 2026-11-22 from https://learn.chatgpt.com/d
 
 `failed-turn.jsonl`: the `task_started` / `task_complete` lines are CAPTURED from a real
 Codex CLI 0.163 rollout (a turn that failed with a 400 model error); the `response_item`
-line between them is constructed. `completed-turn.jsonl` and `running-turn.jsonl` are
+line between them is constructed, and the turn id is a placeholder. `completed-turn.jsonl` and `running-turn.jsonl` are
 CONSTRUCTED in the same shape. Codex documents the rollout format as unstable.
 
 ## `cursor/*.json` (CONSTRUCTED)

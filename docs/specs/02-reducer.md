@@ -133,3 +133,15 @@ Tests: `SessionNameTests/anEventNameBecomesTheSessionName`, `SessionNameTests/aR
 An event the rules above ignore (a reply to no open request, activity from the turn that ended) leaves the session exactly as it was, including the time of its newest event. So it can neither delay the 15-minute silence rule nor cause a later, older-dated event to be dropped.
 
 Tests: `IgnoredEventTests/anIgnoredEventDoesNotMoveTheClock`
+
+### RED-21 Only the newest 1,000 ended sessions are remembered
+
+The ids of ended sessions are remembered so that late events cannot recreate them (RED-08 and the rules above). At most 1,000 are kept. When one more session ends, the id that ended longest ago is forgotten. A late event for a forgotten id is treated like an event for an unknown session.
+
+Tests: `ReducerTests/onlyTheNewest1000EndedSessionsAreRemembered`
+
+### RED-22 Session ids longer than 256 characters are dropped
+
+A hook event or a discovered session whose session id is longer than 256 characters changes nothing. Agents' ids are 36 characters.
+
+Tests: `ReducerTests/aSessionIdLongerThan256CharactersIsDropped`

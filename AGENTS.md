@@ -16,6 +16,7 @@ swift test --filter ReducerTests                                   # one suite, 
 swift test --filter ReducerTests/permissionRequestMeansNeedsApproval   # one test
 swift build                                                        # debug build of both targets
 scripts/check-specs.sh                                             # specs and tests name each other
+scripts/check-public.sh --tree-only                                # nothing private in tracked files, workflows pinned (no flag: all history too)
 scripts/bundle.sh                                                  # release build -> build/WhoIsWorking.app (ad-hoc signed)
 scripts/bundle.sh debug                                            # same, debug configuration
 scripts/update.sh [--skip-tests] [--install]                       # test, build, stop the running WhoIsWorking, rebundle, reopen (--install: into /Applications)
@@ -24,7 +25,7 @@ scripts/render-install.sh X.Y.Z <dmg sha256> 15.0                  # prints the 
 open build/WhoIsWorking.app
 ```
 
-`scripts/release.sh X.Y.Z` without `--dry-run` publishes to the public `Bakhtiyor7/whoisworking-releases` repo and pushes to `origin`; run it only when the user asks, and it asks for "yes" itself. Releases are described in spec 13 and `docs/release-plan.md`, the install command (`install.sh`, a second release asset) in spec 20; the public repo's README source is `docs/releases-repo/README.md`.
+`scripts/release.sh X.Y.Z` without `--dry-run` publishes to the public `Bakhtiyor7/whoisworking-releases` repo and pushes to `origin`; run it only when the user asks, and it asks for "yes" itself. Releases are described in spec 13, the install command (`install.sh`, a second release asset) in spec 20; the public repo's README source is `docs/releases-repo/README.md`.
 
 `--filter` matches on the Swift type and function names, not the `@Suite("…")` display names. It is a substring match, so `ReducerTests` also runs `CodexReducerTests`.
 
@@ -128,12 +129,20 @@ Mobbin, Liquid Glass (`liquid-glass`) and Apple HIG (`apple-hig-designer`) come 
 
 To check the UI, run the debug binary directly (`.build/debug/WhoIsWorking` with the `WHOISWORKING_*` variables); the `whoisworking-verify-ui` skill has the steps. Do not run `scripts/bundle.sh` just to check something: it replaces `build/WhoIsWorking.app`, which may be the copy that is running. `scripts/update.sh` also stops the running WhoIsWorking, so run it only when the user asks; to install the new build in `/Applications`, use the `whoisworking-install` skill.
 
+## What is published
+
+The repository is being prepared to become public ([spec 21](docs/specs/21-open-source.md)). Treat every tracked file and every commit as public:
+
+- No real session ids, prompts, share links to private documents, home-folder paths or personal names in tracked files. Fixtures use placeholders (`whoisworking-fixtures` skill). `scripts/check-public.sh` looks for these.
+- Working plans, reviews and research notes go in `docs/local/`, which git ignores. Tracked files do not link into it; what a spec needs from a plan is written into the spec.
+- Code from outside the maintainer (a pull request, a fork, a patch in an issue) is read in full before it is checked out, built, tested or opened with an agent: `swift build` runs `Package.swift`, `swift test` runs the tests, and `.claude/settings.json` runs scripts in every session. The `whoisworking-contributions` skill has the steps.
+
 ## Agent setup
 
 | What | Where | Read by |
 |---|---|---|
 | Instructions | `AGENTS.md` (`CLAUDE.md` imports it) | Claude Code, Codex, Cursor, OpenCode |
-| Skills: `whoisworking-spec`, `whoisworking-verify-ui`, `whoisworking-design`, `whoisworking-fixtures`, `whoisworking-install` | `.agents/skills/` (`.claude/skills` is a symlink to it) | all four |
+| Skills: `whoisworking-spec`, `whoisworking-verify-ui`, `whoisworking-design`, `whoisworking-fixtures`, `whoisworking-install`, `whoisworking-contributions` | `.agents/skills/` (`.claude/skills` is a symlink to it) | all four |
 | Subagents: `spec-reviewer`, `design-reviewer` | `.claude/agents/` | Claude Code |
 | Allowed commands, plugins, hooks | `.claude/settings.json` | Claude Code |
 | Allowed commands | `.codex/rules/whoisworking.rules` (trusted projects only), `.cursor/cli.json`, `opencode.json` | Codex, cursor-agent, OpenCode |

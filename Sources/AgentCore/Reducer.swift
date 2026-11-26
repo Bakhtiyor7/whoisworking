@@ -12,6 +12,10 @@ public enum Reducer {
     }
     /// A session file's "idle" must be this much newer than the hook-derived state to override it.
     public static let fileStatusMargin: TimeInterval = 0.5
+    /// How many ended session ids are remembered (RED-21).
+    public static let maxEndedSessions = 1000
+    /// An event with a longer session id is dropped (RED-22). Agents' ids are 36 characters.
+    public static let maxSessionIdLength = 256
 }
 
 /// Pure state transition: (sessions, event) -> sessions.
@@ -25,8 +29,10 @@ public func reduce(_ state: SessionsState, _ event: StoreEvent) -> SessionsState
     var next = state
     switch event {
     case .agent(let e):
+        guard e.sessionId.count <= Reducer.maxSessionIdLength else { break }
         applyAgent(e, to: &next)
     case .discovered(let found, let date):
+        guard found.sessionId.count <= Reducer.maxSessionIdLength else { break }
         applyDiscovered(found, at: date, to: &next)
     case .discoveredProcess(let proc, let date):
         // Only while no session is known for that process, and no live session of that agent shares its

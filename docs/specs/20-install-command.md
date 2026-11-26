@@ -181,7 +181,7 @@ Verified by: `scripts/update.sh --install` on the development Mac on 2026-11-25,
 - DST-01 in spec 13: a release has exactly two assets, the DMG and `install.sh`, from the first release after 0.1.0.
 - DST-09 in spec 13: the dry-run folder, both assets in the draft, and the re-run rules of DST-20.
 - DST-11 is unchanged; DST-20 adds the install run.
-- `docs/release-plan.md` §2.5 points here for the second asset. Its D1 ("holds only a README") is about the public repo's git contents and stays true.
+- The public releases repo still holds only a README in git; `install.sh` is a release asset, not a tracked file there.
 - Spec 16 needs no change.
 
 ## How the tests work

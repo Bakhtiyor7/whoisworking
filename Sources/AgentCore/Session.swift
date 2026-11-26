@@ -142,11 +142,38 @@ public struct Session: Equatable, Sendable, Identifiable {
 public struct SessionsState: Equatable, Sendable {
     public var sessions: [String: Session]
     /// Ids of sessions that ended. Late events for them are dropped instead of recreating the session.
-    public var ended: Set<String>
+    public var ended: EndedIds
 
-    public init(sessions: [String: Session] = [:], ended: Set<String> = []) {
+    public init(sessions: [String: Session] = [:], ended: EndedIds = EndedIds()) {
         self.sessions = sessions
         self.ended = ended
+    }
+}
+
+/// The ids of the sessions that ended most recently, at most `Reducer.maxEndedSessions` of them
+/// (RED-21). When one more is added, the one that ended longest ago is forgotten.
+public struct EndedIds: Equatable, Sendable {
+    private var ids: Set<String> = []
+    /// Oldest first.
+    private var order: [String] = []
+
+    public init() {}
+
+    public var count: Int { ids.count }
+    public var isEmpty: Bool { ids.isEmpty }
+    public func contains(_ id: String) -> Bool { ids.contains(id) }
+
+    public mutating func insert(_ id: String) {
+        guard ids.insert(id).inserted else { return }
+        order.append(id)
+        if order.count > Reducer.maxEndedSessions {
+            ids.remove(order.removeFirst())
+        }
+    }
+
+    public mutating func remove(_ id: String) {
+        guard ids.remove(id) != nil else { return }
+        order.removeAll { $0 == id }
     }
 }
 
