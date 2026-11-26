@@ -76,7 +76,16 @@ State on 2026-11-26, from `scripts/check-public.sh` with gitleaks 8.30.1 and tru
 - Tree: nothing found in 190 files. The artifact link is gone from `docs/plan.md`; the session id, session name, timestamps and turn id in the two fixtures are placeholders, and the tests that read them pass; the two tracked working plans moved to `docs/local/`, and specs 13 and 20, `docs/plan.md` and `AGENTS.md` no longer cite them.
 - History: five findings, all expected, all for the rewrite: the artifact link, the old session id, the old turn id, and the two working plans. Every author and committer address is the no-reply address.
 - Kept on purpose: commit trailers naming the Claude models that co-wrote the commits (OSS-23).
-- Still to do: the rewrite; the check again on the rewritten clone, on the exact refs that are published; the read of every file by the maintainer.
+- Still to do then: the rewrite and the check again on the rewritten clone; the read of every file by the maintainer.
+
+The rewrite, on 2026-11-26, with git filter-repo 2.47.0, in a fresh single-branch clone beside the working checkout, of `master` with the `setup-copy-pass` branch merged into it (45 commits, `master` and the annotated tags `v0.1.0` and `v0.1.1`). The private repository and the working checkout were not changed. In every blob, ten literal values were replaced by the placeholders `master` already had: the two fixture ids, the session name, four timestamps (as the fixture writes them and as the test writes them) and the artifact link with its brackets. `docs/release-plan.md`, `docs/agent-integrations-plan.md` and `docs/install-and-setup-review.md` were dropped from every commit. No commit message held any of these. Checked on the rewritten clone the same day:
+
+- `scripts/check-public.sh` with no flags: nothing found in the tree and the history (206 files); gitleaks 8.30.1 and trufflehog 3.99.9 found nothing.
+- Each removed value searched for in every object of the repository, reachable or not (787 objects): no hit. None of the three plans is in any commit. No home-folder path or personal address in any object.
+- Refs: `master` and the two tags, nothing else (no remote, stash, note or replace ref). Every author, committer and tagger address is the no-reply address.
+- Tags: `v0.1.0` has version 0.1.0, build 1, and `v0.1.1` has 0.1.1, build 2 (`Resources/Info.plist`). Against the original tags, only the two fixtures, their two test files and `docs/plan.md` differ, and the two plans tracked then are gone; the fixture tests (`ClaudeCodeAdapterTests`, `CodexRolloutTests`) pass at the rewritten `v0.1.1`.
+- The tip (`be21080`, the commit before this record): its tree is identical to the tip before the rewrite; `swift build`, `swift test` (345 tests), `scripts/check-specs.sh` and `scripts/check-docs.sh` pass, with Swift 6.4.2.
+- Still to do: the maintainer's read of every file and every commit message; the commit that is published, recorded after the push.
 
 ### OSS-03 Known weaknesses are closed first
 
